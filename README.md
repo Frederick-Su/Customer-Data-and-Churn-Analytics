@@ -1,10 +1,10 @@
-# 📊 Customer Data & Churn Analytics Dashboard
+# Customer Data & Churn Analytics Dashboard
 
 An enterprise web application built with **Laravel** and **Python** designed to analyze operational Excel datasets and generate multi-region customer insights, tenure breakdowns, and churn trend visualizations.
 
 ---
 
-## ✨ Features
+## Features
 
 - **Excel Data Processing:** Drag-and-drop or upload `.xlsx` and `.xls` files directly through the dashboard.
 - **Python Analytics Pipeline:** Custom data engine using `pandas`, `seaborn`, and `matplotlib` to parse metrics and render visual reports.
@@ -18,7 +18,7 @@ An enterprise web application built with **Laravel** and **Python** designed to 
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Backend:** PHP 8.x / [Laravel 10.x](https://laravel.com)
 - **Data & Analytics Engine:** Python 3.10+ (`pandas`, `matplotlib`, `seaborn`, `openpyxl`)
@@ -27,7 +27,7 @@ An enterprise web application built with **Laravel** and **Python** designed to 
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
