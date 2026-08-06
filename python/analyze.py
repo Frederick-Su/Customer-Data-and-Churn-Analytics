@@ -443,3 +443,205 @@ for site in site_churn_metrics_df.index.get_level_values('Site').unique():
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f"6_{site}_weekly_churn.png"))
     plt.close()
+# ============================================================
+# GRAPH 7 - ACTIVE REVENUE
+# ============================================================
+
+active_df = df[df['Status Customer'] == 'Aktif'].copy()
+
+active_df['Price'] = pd.to_numeric(active_df['Price'], errors='coerce').fillna(0)
+active_df['SellerFee'] = pd.to_numeric(active_df['SellerFee'], errors='coerce').fillna(0)
+active_df['Net_Revenue'] = active_df['Price'] - active_df['SellerFee']
+active_df['Renewed'] = pd.to_datetime(active_df['Renewed'], errors='coerce')
+
+# ------------------------------------------------------------
+# Keep newest renewal for each customer
+# ------------------------------------------------------------
+
+if 'Customer ID' in active_df.columns:
+
+    idx = active_df.groupby('Customer ID')['Renewed'].idxmax()
+    newest_active = active_df.loc[idx].copy()
+
+else:
+
+    newest_active = active_df.copy()
+
+newest_active = newest_active.dropna(subset=['Region', 'Renewed']).copy()
+
+# ------------------------------------------------------------
+# Create date columns ONCE
+# ------------------------------------------------------------
+
+newest_active['Year'] = newest_active['Renewed'].dt.year.astype(str)
+
+newest_active['MonthPeriod'] = newest_active['Renewed'].dt.to_period('M')
+newest_active['Month'] = newest_active['MonthPeriod'].dt.strftime('%b %Y')
+
+current_year = str(pd.Timestamp.today().year)
+current = newest_active[newest_active['Year'] == current_year].copy()
+
+week_start = current['Renewed'].min().to_period('W').start_time
+
+current['Week'] = (
+    ((current['Renewed'] - week_start).dt.days // 7) + 1
+).astype(int)
+
+# ============================================================
+# GRAPH HELPER
+# ============================================================
+
+def save_revenue_chart(data, x, y, filename, title, show_labels=True):
+
+    plt.figure(figsize=(10,5))
+
+    ax = sns.barplot(
+        data=data,
+        x=x,
+        y=y,
+        palette='Blues_d'
+    )
+
+    plt.title(title)
+
+    plt.xlabel(x)
+
+    plt.ylabel("Net Revenue")
+
+    ax.yaxis.set_major_formatter('{x:,.0f}')
+
+    if show_labels:
+        for p in ax.patches:
+            ax.annotate(
+                f'{p.get_height():,.0f}',
+                (p.get_x() + p.get_width() / 2., p.get_height()),
+                ha='center',
+                va='bottom',
+                xytext=(0, 5),
+                textcoords='offset points',
+                fontsize=9,
+                fontweight='bold'
+            )
+
+    plt.xticks(rotation=45)
+
+    plt.tight_layout()
+
+    plt.savefig(os.path.join(output_dir, filename))
+
+    plt.close()
+
+# ============================================================
+# GRAPH DATA
+# ============================================================
+
+yearly_chart = (
+    newest_active
+    .groupby('Year', as_index=False)['Net_Revenue']
+    .sum()
+)
+
+monthly_chart = (
+    current
+    .groupby('MonthPeriod', as_index=False)['Net_Revenue']
+    .sum()
+    .sort_values('MonthPeriod')
+)
+
+monthly_chart['Month'] = monthly_chart['MonthPeriod'].dt.strftime('%b %Y')
+
+weekly_chart = (
+    current
+    .groupby('Week', as_index=False)['Net_Revenue']
+    .sum()
+    .sort_values('Week')
+)
+
+# ============================================================
+# SAVE GRAPHS
+# ============================================================
+# Yearly
+save_revenue_chart(
+    yearly_chart,
+    'Year',
+    'Net_Revenue',
+    '7_active_revenue_all.png',
+    'Distribution of Current Active Revenue by Year',
+    show_labels=True
+)
+
+# Monthly
+save_revenue_chart(
+    monthly_chart,
+    'Month',
+    'Net_Revenue',
+    '7_active_revenue_monthly.png',
+    'Latest Active Renewals by Month',
+    show_labels=True
+)
+
+# Weekly
+save_revenue_chart(
+    weekly_chart,
+    'Week',
+    'Net_Revenue',
+    '7_active_revenue_weekly.png',
+    'Latest Active Renewals by Week',
+    show_labels=False
+)
+# ============================================================
+# SUMMARY HELPER
+# ============================================================
+
+def period_summary(frame, column):
+
+    return (
+        frame
+        .groupby([column,'Region'])
+        .agg(
+            Active_Customers=('Net_Revenue','count'),
+            Total_Revenue=('Net_Revenue','sum'),
+            Average_Revenue=('Net_Revenue','mean')
+        )
+        .round(2)
+        .reset_index()
+        .sort_values([column,'Region'], ascending=[False,True])
+        .to_dict('records')
+    )
+
+# ============================================================
+# YEARLY SUMMARY
+# ============================================================
+
+summary_revenue = (
+    newest_active
+    .groupby('Region')
+    .agg(
+        Active_Customers=('Net_Revenue','count'),
+        Total_Revenue=('Net_Revenue','sum'),
+        Average_Revenue=('Net_Revenue','mean')
+    )
+    .round(2)
+    .sort_values('Total_Revenue', ascending=False)
+    .to_dict()
+)
+
+with open(os.path.join(output_dir,'7_active_revenue.json'),'w') as f:
+
+    json.dump(summary_revenue,f,indent=4)
+
+# ============================================================
+# MONTHLY SUMMARY
+# ============================================================
+
+with open(os.path.join(output_dir,'7_active_revenue_monthly.json'),'w') as f:
+
+    json.dump(period_summary(current,'Month'),f,indent=4)
+
+# ============================================================
+# WEEKLY SUMMARY
+# ============================================================
+
+with open(os.path.join(output_dir,'7_active_revenue_weekly.json'),'w') as f:
+
+    json.dump(period_summary(current,'Week'),f,indent=4)

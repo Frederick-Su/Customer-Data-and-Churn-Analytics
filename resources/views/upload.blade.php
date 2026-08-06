@@ -11,7 +11,7 @@
             darkMode: 'class',
         }
     </script>
-    <!-- Alpine.js for Tab Switching, Modal & Dark Mode Toggle -->
+    <!-- Alpine.js for Tab Switching, Modal, Filter & Dark Mode Toggle -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         [x-cloak] { display: none !important; }
@@ -101,6 +101,12 @@
                         :class="activeTab === 'weekly' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 font-semibold shadow-sm' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-700'"
                         class="px-5 py-3 border-b-2 text-sm rounded-t-lg transition-all flex items-center gap-2">
                     Site Weekly Churn
+                </button>
+
+                <button @click="activeTab = 'revenue'" 
+                        :class="activeTab === 'revenue' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 font-semibold shadow-sm' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-700'"
+                        class="px-5 py-3 border-b-2 text-sm rounded-t-lg transition-all flex items-center gap-2">
+                    Active Revenue
                 </button>
             </div>
 
@@ -256,6 +262,202 @@
                         @endforeach
                     </div>
                 </div>
+            </div>
+
+            <!-- TAB 5: ACTIVE REVENUE WITH TIME GRANULARITY -->
+            <div x-show="activeTab === 'revenue'" x-cloak x-data="{ timeframe: 'all' }" class="space-y-6">
+                @php
+                    $imgRevenueAll = $images->firstWhere('name', '7_active_revenue_all');
+                    $imgRevenueMonthly = $images->firstWhere('name', '7_active_revenue_monthly');
+                    $imgRevenueWeekly = $images->firstWhere('name', '7_active_revenue_weekly');
+                @endphp
+                @if($imgRevenueAll || $imgRevenueMonthly || $imgRevenueWeekly)
+                <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">Latest Renewals</h2>
+                            <p class="text-slate-500 dark:text-slate-400 text-xs mt-0.5">Calculated from (Price - SellerFee) using latest customer renewals grouped by time.</p>
+                        </div>
+
+                        <!-- Timeframe Granularity Toggle -->
+                        <div class="inline-flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 self-start sm:self-auto">
+                            <button @click="timeframe = 'all'" 
+                                    :class="timeframe === 'all' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm font-semibold' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'"
+                                    class="px-3 py-1.5 text-xs rounded-lg transition-all">
+                                Yearly
+                            </button>
+                            <button @click="timeframe = 'monthly'" 
+                                    :class="timeframe === 'monthly' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm font-semibold' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'"
+                                    class="px-3 py-1.5 text-xs rounded-lg transition-all">
+                                Monthly
+                            </button>
+                            <button @click="timeframe = 'weekly'" 
+                                    :class="timeframe === 'weekly' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm font-semibold' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'"
+                                    class="px-3 py-1.5 text-xs rounded-lg transition-all">
+                                Weekly
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-hidden rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-700/50 p-2">
+
+                    <!-- Yearly -->
+                    @if($imgRevenueAll)
+                    <div
+                        x-show="timeframe === 'all'"
+                        class="cursor-pointer group"
+                        @click="openModal('{{ $imgRevenueAll['url'] }}', 'Company Net Revenue (All Time)')">
+                        <img
+                            src="{{ $imgRevenueAll['url'] }}"
+                            alt="All Time Revenue"
+                            class="w-full h-auto object-contain max-h-[500px] mx-auto rounded-lg group-hover:scale-[1.01] transition-transform duration-200">
+                    </div>
+                    @endif
+
+                    <!-- Monthly -->
+                    @if($imgRevenueMonthly)
+                    <div
+                        x-show="timeframe === 'monthly'"
+                        x-cloak
+                        class="cursor-pointer group"
+                        @click="openModal('{{ $imgRevenueMonthly['url'] }}', 'Monthly Net Revenue')">
+                        <img
+                            src="{{ $imgRevenueMonthly['url'] }}"
+                            alt="Monthly Revenue"
+                            class="w-full h-auto object-contain max-h-[500px] mx-auto rounded-lg group-hover:scale-[1.01] transition-transform duration-200">
+                    </div>
+                    @endif
+
+                    <!-- Weekly -->
+                    @if($imgRevenueWeekly)
+                    <div
+                        x-show="timeframe === 'weekly'"
+                        x-cloak
+                        class="cursor-pointer group"
+                        @click="openModal('{{ $imgRevenueWeekly['url'] }}', 'Weekly Net Revenue')">
+                        <img
+                            src="{{ $imgRevenueWeekly['url'] }}"
+                            alt="Weekly Revenue"
+                            class="w-full h-auto object-contain max-h-[500px] mx-auto rounded-lg group-hover:scale-[1.01] transition-transform duration-200">
+                    </div>
+                    @endif
+
+                </div>
+
+                    <!-- SUMMARY TABLES BY TIMEFRAME -->
+                    
+                    <!-- 1. Yearly Table -->
+                    <div x-show="timeframe === 'all'" class="mt-6 border-t border-slate-100 dark:border-slate-700/60 pt-4">
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-2">Yearly Regional Summary</h3>
+                        @if(isset($summaries['7_active_revenue']))
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left text-slate-600 dark:text-slate-300">
+                                <thead class="bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 font-medium">
+                                    <tr>
+                                        <th class="p-2 rounded-l">Region</th>
+                                        <th class="p-2">Customer Renewals</th>
+                                        <th class="p-2">Total Net Revenue</th>
+                                        <th class="p-2">Avg Revenue / Renewal</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50">
+                                    @php
+                                        $regions = array_keys($summaries['7_active_revenue']['Total_Revenue'] ?? []);
+                                    @endphp
+                                    @foreach($regions as $region)
+                                    <tr>
+                                        <td class="p-2 font-semibold text-slate-800 dark:text-slate-100">{{ $region }}</td>
+                                        <td class="p-2">{{ $summaries['7_active_revenue']['Active_Customers'][$region] ?? 0 }}</td>
+                                        <td class="p-2 font-medium text-emerald-600 dark:text-emerald-400">
+                                            {{ number_format($summaries['7_active_revenue']['Total_Revenue'][$region] ?? 0, 2) }}
+                                        </td>
+                                        <td class="p-2">
+                                            {{ number_format($summaries['7_active_revenue']['Average_Revenue'][$region] ?? 0, 2) }}
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        @endif
+                    </div>
+
+                    <!-- 2. Monthly Granularity Table -->
+                    <div x-show="timeframe === 'monthly'" x-cloak class="mt-6 border-t border-slate-100 dark:border-slate-700/60 pt-4">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-2">Monthly Revenue Breakdown by Region</h3>
+                    @if(isset($summaries['7_active_revenue_monthly']))
+                    <div class="max-h-[300px] overflow-y-auto">
+                        <table class="w-full text-xs text-left text-slate-600 dark:text-slate-300">
+                            <thead class="bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 font-medium sticky top-0">
+                                <tr>
+                                    <th class="p-2">Month</th>
+                                    <th class="p-2">Region</th>
+                                    <th class="p-2">Active Customers</th>
+                                    <th class="p-2">Net Revenue</th>
+                                    <th class="p-2">Avg Revenue / Customer</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50">
+                                @foreach($summaries['7_active_revenue_monthly'] as $row)
+                                <tr>
+                                    <td class="p-2 font-medium text-slate-800 dark:text-slate-100">{{ $row['Month'] ?? '-' }}</td>
+                                    <td class="p-2">{{ $row['Region'] ?? '-' }}</td>
+                                    <td class="p-2">{{ $row['Active_Customers'] ?? 0 }}</td>
+                                    <td class="p-2 font-medium text-emerald-600 dark:text-emerald-400">
+                                        {{ number_format($row['Total_Revenue'] ?? 0, 2) }}
+                                    </td>
+                                    <td class="p-2">
+                                        {{ number_format($row['Average_Revenue'] ?? 0, 2) }}
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @else
+                    <p class="text-xs text-slate-400 italic">Monthly summary data is not present in the payload.</p>
+                    @endif
+                </div>
+
+                    <!-- 3. Weekly Granularity Table -->
+                    <div x-show="timeframe === 'weekly'" x-cloak class="mt-6 border-t border-slate-100 dark:border-slate-700/60 pt-4">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-2">Weekly Revenue Breakdown by Region</h3>
+                    @if(isset($summaries['7_active_revenue_weekly']))
+                    <div class="max-h-[300px] overflow-y-auto">
+                        <table class="w-full text-xs text-left text-slate-600 dark:text-slate-300">
+                            <thead class="bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 font-medium sticky top-0">
+                                <tr>
+                                    <th class="p-2">Week</th>
+                                    <th class="p-2">Region</th>
+                                    <th class="p-2">Active Customers</th>
+                                    <th class="p-2">Net Revenue</th>
+                                    <th class="p-2">Avg Revenue / Customer</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50">
+                                @foreach($summaries['7_active_revenue_weekly'] as $row)
+                                <tr>
+                                    <td class="p-2 font-medium text-slate-800 dark:text-slate-100">{{ $row['Week'] ?? '-' }}</td>
+                                    <td class="p-2">{{ $row['Region'] ?? '-' }}</td>
+                                    <td class="p-2">{{ $row['Active_Customers'] ?? 0 }}</td>
+                                    <td class="p-2 font-medium text-emerald-600 dark:text-emerald-400">
+                                        {{ number_format($row['Total_Revenue'] ?? 0, 2) }}
+                                    </td>
+                                    <td class="p-2">
+                                        {{ number_format($row['Average_Revenue'] ?? 0, 2) }}
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @else
+                    <p class="text-xs text-slate-400 italic">Weekly summary data is not present in the payload.</p>
+                    @endif
+                </div>
+
+                </div>
+                @endif
             </div>
 
             <!-- Lightbox Modal -->
