@@ -23,8 +23,13 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 
-# User uploads and results
+# Storage & User Uploads
+/storage/*.key
 /storage/app/uploads/*
 !/storage/app/uploads/.gitignore
 /storage/app/public/results/*
 !/storage/app/public/results/.gitignore
+
+# If serving results directly from public/
+/public/results/*
+!/public/results/.gitignore
