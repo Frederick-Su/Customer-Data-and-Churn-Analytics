@@ -11,7 +11,14 @@ import matplotlib.dates as mdates
 excel_path = sys.argv[1]
 analysis_id = sys.argv[2]
 
-df = pd.read_excel(excel_path)
+file_ext = os.path.splitext(excel_path)[1].lower()
+
+if file_ext == '.csv':
+    df = pd.read_csv(excel_path)
+elif file_ext in ['.xlsx', '.xls']:
+    df = pd.read_excel(excel_path)
+else:
+    raise ValueError(f"Unsupported file format '{file_ext}'. Please provide a .xlsx, .xls, or .csv file.")
 
 original_df = df.copy()
 
@@ -38,11 +45,14 @@ df = df.replace('COMPLIMENT', 'Compliment')
 df = df.replace('AKTIF', 'Aktif')
 
 # Format and find Service Duration
-df['Created'] = pd.to_datetime(df['Created'])
-df['Renewed'] = pd.to_datetime(df['Renewed'])
+def parse_date(column):
+    return pd.to_datetime(column, dayfirst=True, format='mixed')
+
+df['Created'] = parse_date(df['Created'])
+df['Renewed'] = parse_date(df['Renewed'])
 
 df['Expired'] = df['Expired'].replace('0000-00-00 00:00:00', np.nan)
-df['Expired'] = pd.to_datetime(df['Expired'])
+df['Expired'] = parse_date(df['Expired'])
 
 # Calculate Duration_days based on Status Customer
 eval_date = pd.to_datetime('2026-08-02').normalize()

@@ -12,10 +12,10 @@ Route::get('/', function () {
 Route::post('/analyze', function (Request $request) {
     $analysisId = Str::uuid()->toString();
     $request->validate([
-        'excel' => 'required|mimes:xlsx,xls'
+        'excel' => 'required|mimes:xlsx,xls,csv'
     ]);
 
-    // Save uploaded Excel
+    // Save uploaded file
     $path = $request->file('excel')->store('uploads');
 
     // Python script

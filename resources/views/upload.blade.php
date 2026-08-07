@@ -45,7 +45,7 @@
         <div class="flex items-center justify-between w-full md:w-auto">
             <div>
                 <h1 class="text-3xl font-bold tracking-tight">VNET-Analytics</h1>
-                <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Upload an standardized VNET data format Excel file to generate analytics and visualizations.</p>
+                <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Upload an standardized VNET data format Excel or CSV file to generate analytics and visualizations.</p>
             </div>
 
             <button @click="darkMode = !darkMode"
@@ -59,7 +59,7 @@
             <form action="/analyze" method="POST" enctype="multipart/form-data"
                   class="flex-1 md:flex-none flex items-center gap-3 bg-white dark:bg-slate-800 p-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
                 @csrf
-                <input type="file" name="excel" accept=".xlsx,.xls" required
+                <input type="file" name="excel" accept=".xlsx,.xls,.csv" required
                        class="block w-full text-sm text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 dark:file:bg-indigo-950/60 dark:file:text-indigo-300 hover:file:bg-indigo-100 dark:hover:file:bg-indigo-900/50 cursor-pointer">
                 <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2 rounded-lg transition-colors text-sm shadow-sm whitespace-nowrap">
                     Analyze Data
