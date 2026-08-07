@@ -13,6 +13,8 @@ analysis_id = sys.argv[2]
 
 df = pd.read_excel(excel_path)
 
+original_df = df.copy()
+
 # Define the project root and where the images are uploaded to (storage/app/public/results)
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 output_dir = os.path.join(
@@ -62,12 +64,26 @@ df.loc[
 # Remove negative outliers (There should be 2 in Jakarta)
 df = df[df['Duration_days'] >= 0]
 
+
+
 # Graph 1 (mosaic.png)
 plt.rcParams["figure.figsize"] = [10.00, 3.50]
 plt.rcParams["figure.autolayout"] = True
 mosaic(df, index=['Region', 'Status Customer'], title='Mosaic Plot')
 plt.savefig(os.path.join(output_dir, "1_mosaic.png"))
 plt.close()
+
+summary_mosaic = (
+    df.groupby(["Region", "Status Customer"])
+      .size()
+      .unstack(fill_value=0)
+)
+
+summary_mosaic["Total"] = summary_mosaic.sum(axis=1)
+summary_mosaic.loc["Total"] = summary_mosaic.sum()
+
+with open(os.path.join(output_dir, "1_mosaic.json"), "w") as f:
+    json.dump(summary_mosaic.astype(int).to_dict(), f, indent=4)
 
 # Graph 2 (tenure.png)
 df['Duration_months'] = df['Duration_days'] / 30.44
@@ -645,3 +661,31 @@ with open(os.path.join(output_dir,'7_active_revenue_monthly.json'),'w') as f:
 with open(os.path.join(output_dir,'7_active_revenue_weekly.json'),'w') as f:
 
     json.dump(period_summary(current,'Week'),f,indent=4)
+
+# ============================================================
+# DASHBOARD SUMMARY
+# ============================================================
+
+oldest_dataset = df["Renewed"].min()
+latest_dataset = df["Renewed"].max()
+
+summary_dashboard = {
+    "Dataset_Range": f"{original_df['Renewed'].min():%d %b %Y} - {original_df['Renewed'].max():%d %b %Y}",
+    "Entry_Count": len(original_df),
+
+    "Region_Counts": (
+        original_df["Region"]
+        .value_counts()
+        .reindex(["JAKARTA", "SUKABUMI", "BANDUNG"], fill_value=0)
+        .to_dict()
+    ),
+
+    "Data_Quality": {
+        "Rows_Used": len(df),
+        "Rows_Total": len(original_df),
+        "Score": round(len(df) / len(original_df) * 100, 1)
+    }
+}
+
+with open(os.path.join(output_dir, "0_dashboard_cards.json"), "w") as f:
+        json.dump(summary_dashboard, f, indent=4)
