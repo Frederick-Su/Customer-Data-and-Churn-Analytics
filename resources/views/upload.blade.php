@@ -200,7 +200,7 @@
             <button @click="activeTab = 'weekly'"
                     :class="activeTab === 'weekly' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 font-semibold shadow-sm' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-700'"
                     class="px-5 py-3 border-b-2 text-sm rounded-t-lg transition-all flex items-center gap-2">
-                Site Weekly Churn
+                Site Monthly Churn
             </button>
 
             <button @click="activeTab = 'revenue'"

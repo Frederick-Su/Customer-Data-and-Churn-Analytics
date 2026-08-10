@@ -45,3 +45,10 @@ Ensure you have the following installed on your machine:
 ```bash
 git clone [https://github.com/Frederick-Su/Customer-Data-and-Churn-Analytics.git](https://github.com/Frederick-Su/Customer-Data-and-Churn-Analytics.git)
 cd Customer-Data-and-Churn-Analytics
+
+1. composer install
+2. copy .env.example .env
+3. php artisan key:generate
+4. php artisan migrate
+5. php artisan storage:link
+6. php artisan serve

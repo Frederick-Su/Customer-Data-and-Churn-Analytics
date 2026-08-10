@@ -311,13 +311,13 @@ plt.close()
 # Graph 6 (weekly_site_churn.png) | THIS GRAPH SHOWS THE PAST 6 MONTHS FROM THE LATEST DATA |
 
 # Generate weekly periods covering the dataset
-weeks = pd.period_range(
-    start=df['Created'].min().to_period('W'),
+months = pd.period_range(
+    start=df['Created'].min().to_period('M'),
     end=max(
         df['Expired'].max() if df['Expired'].notna().any() else df['Created'].max(),
         df['Created'].max()
-    ).to_period('W'),
-    freq='W'
+    ).to_period('M'),
+    freq='M'
 )
 
 results = []
@@ -327,22 +327,22 @@ for site in df['Site'].dropna().unique():
 
     site_df = df[df['Site'] == site]
 
-    for week in weeks:
+    for month in months:
 
-        week_start = week.start_time
-        week_end = week.end_time
+        month_start = month.start_time
+        month_end = month.end_time
 
         active = (
-            (site_df['Created'] <= week_start) &
+            (site_df['Created'] <= month_start) &
             (
                 site_df['Expired'].isna() |
-                (site_df['Expired'] > week_end)
+                (site_df['Expired'] > month_end)
             )
         ).sum()
 
         results.append({
             'Site': site,
-            'Week': week.start_time,
+            'Month': month.start_time,
             'Active Customers': active
         })
 
@@ -352,29 +352,29 @@ active_df = pd.DataFrame(results)
 
 # Customers who churned
 df_churn = df[df['Expired'].notna()].copy()
-df_churn['Week_Period'] = df_churn['Expired'].dt.to_period('W')
+df_churn['Month_Period'] = df_churn['Expired'].dt.to_period('M')
 
-active_df['Week_Period'] = active_df['Week'].dt.to_period('W')
+active_df['Month_Period'] = active_df['Month'].dt.to_period('M')
 
 
-# Active customers by site and week
-active_customers_by_site_week = (
-    active_df.groupby(['Site', 'Week_Period'])['Active Customers']
+# Active customers by site and month
+active_customers_by_site_month = (
+    active_df.groupby(['Site', 'Month_Period'])['Active Customers']
     .sum()
 )
 
 
 # Churned customers by site and week
-churned_customers_by_site_week = (
-    df_churn.groupby(['Site', 'Week_Period'])
+churned_customers_by_site_month = (
+    df_churn.groupby(['Site', 'Month_Period'])
     .size()
 )
 
 
 # Combine
 site_churn_metrics_df = pd.DataFrame({
-    'Churned Customers': churned_customers_by_site_week,
-    'Active Customers': active_customers_by_site_week
+    'Churned Customers': churned_customers_by_site_month,
+    'Active Customers': active_customers_by_site_month
 }).unstack(fill_value=0).stack()
 
 
@@ -393,16 +393,16 @@ site_churn_metrics_df = site_churn_metrics_df[
 ]
 
 
-# Calculate weekly churn percentage
-site_churn_metrics_df['Weekly Churn Percentage'] = (
+# Calculate monthly churn percentage
+site_churn_metrics_df['Monthly Churn Percentage'] = (
     site_churn_metrics_df['Churned Customers']
     /
     site_churn_metrics_df['Active Customers']
 ) * 100
 
-# Keep only the last 6 completed months
+# Keep only the last 12 completed months
 latest_month = df['Created'].max().to_period('M')
-# Keep only the last 6 completed months based on available data
+# Keep only the last 12 completed months based on available data
 # Exclude current month and future dates
 
 today_month = pd.Timestamp.today().to_period('M')
@@ -413,11 +413,11 @@ latest_data_month = min(
     today_month - 1
 )
 
-first_month = latest_data_month - 5
+first_month = latest_data_month - 11
 week_months = (
     site_churn_metrics_df
     .index
-    .get_level_values('Week_Period')
+    .get_level_values('Month_Period')
     .to_timestamp()
     .to_period('M')
 )
@@ -433,11 +433,11 @@ for site in site_churn_metrics_df.index.get_level_values('Site').unique():
     subset = site_churn_metrics_df.xs(site, level='Site').copy()
 
 
-    # Ignore weeks before the site existed
+    # Ignore months before the site existed
     site_created = (
         df.loc[df['Site'] == site, 'Created']
         .min()
-        .to_period('W')
+        .to_period('M')
     )
 
     subset = subset[subset.index >= site_created]
@@ -449,13 +449,13 @@ for site in site_churn_metrics_df.index.get_level_values('Site').unique():
 
     plt.plot(
         subset.index.to_timestamp(),
-        subset['Weekly Churn Percentage'],
+        subset['Monthly Churn Percentage'],
         marker='o',
         linewidth=2
     )
 
 
-    plt.title(f'Weekly Churn Percentage - {site}')
+    plt.title(f'Monthly Churn Percentage - {site}')
     plt.xlabel('Month')
     plt.ylabel('Churn Percentage (%)')
 
