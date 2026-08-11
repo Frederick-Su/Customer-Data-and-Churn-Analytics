@@ -28,6 +28,7 @@
         modalOpen: false,
         modalImg: '',
         modalTitle: '',
+        isLoading: false,
         openModal(url, title) {
             this.modalImg = url;
             this.modalTitle = title;
@@ -56,13 +57,13 @@
         </div>
 
         <div class="flex items-center gap-3">
-            <form action="/analyze" method="POST" enctype="multipart/form-data"
+            <form action="/analyze" method="POST" enctype="multipart/form-data" @submit="isLoading = true"
                   class="flex-1 md:flex-none flex items-center gap-3 bg-white dark:bg-slate-800 p-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
                 @csrf
                 <input type="file" name="excel" accept=".xlsx,.xls,.csv" required
                        class="block w-full text-sm text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 dark:file:bg-indigo-950/60 dark:file:text-indigo-300 hover:file:bg-indigo-100 dark:hover:file:bg-indigo-900/50 cursor-pointer">
-                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2 rounded-lg transition-colors text-sm shadow-sm whitespace-nowrap">
-                    Analyze Data
+                <button type="submit" :disabled="isLoading" class="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed text-white font-medium px-5 py-2 rounded-lg transition-colors text-sm shadow-sm whitespace-nowrap flex items-center justify-center gap-2">
+                    <span x-text="isLoading ? 'Analyzing...' : 'Analyze Data'"></span>
                 </button>
             </form>
 
@@ -219,14 +220,29 @@
         @include('analytics.partials.modal')
     </div>
     @else
-    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-12 text-center my-10 transition-colors">
-        <div class="inline-flex p-4 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 mb-4">
-            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-            </svg>
+    <div class="my-10">
+        <div x-show="!isLoading" x-cloak class="bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-12 text-center transition-colors">
+            <div class="inline-flex p-4 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 mb-4">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100">No Analytics Loaded</h3>
+            <p class="text-slate-500 dark:text-slate-400 text-sm max-w-md mx-auto mt-1">Please select and upload an operational Excel file using the form above to display graphs and JSON statistical summaries.</p>
         </div>
-        <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100">No Analytics Loaded</h3>
-        <p class="text-slate-500 dark:text-slate-400 text-sm max-w-md mx-auto mt-1">Please select and upload an operational Excel file using the form above to display graphs and JSON statistical summaries.</p>
+
+        <div x-show="isLoading" x-cloak class="bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-16 text-center transition-colors">
+            <div class="flex flex-col items-center justify-center gap-4">
+                <svg class="h-12 w-12 animate-spin text-indigo-600 dark:text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100">Analyzing data...</h3>
+                    <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">This may take a few moments while charts are generated.</p>
+                </div>
+            </div>
+        </div>
     </div>
     @endif
 </div>

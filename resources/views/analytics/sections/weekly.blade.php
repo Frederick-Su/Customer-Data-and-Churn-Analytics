@@ -1,7 +1,7 @@
 <div x-show="activeTab === 'weekly'" x-cloak class="space-y-6">
     <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
-        <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100 mb-1">Weekly Churn Rate by Site</h2>
-        <p class="text-slate-500 dark:text-slate-400 text-xs mb-6">Historical trends across active sites over the last 6 months.</p>
+        <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100 mb-1">Monthly Churn Rate by Site</h2>
+        <p class="text-slate-500 dark:text-slate-400 text-xs mb-6">Historical trends across active sites over the last 12 months.</p>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             @foreach($weeklyChurnImages as $siteImg)
