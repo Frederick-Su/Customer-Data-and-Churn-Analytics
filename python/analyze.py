@@ -45,6 +45,8 @@ df = df.replace('TERMINATED', 'Terminated')
 df = df.replace('terminated', 'Terminated')
 df = df.replace('COMPLIMENT', 'Compliment')
 df = df.replace('AKTIF', 'Aktif')
+df = df.replace('Griya Artha Sepatan', 'GRIYA ARTHA SEPATAN')
+df = df.replace('Asthara', 'ASTHARA')
 
 # Format and find Service Duration
 def parse_date(column):
@@ -157,10 +159,25 @@ summary = (
 with open(os.path.join(output_dir, "2_tenure.json"), "w") as f:
     json.dump(summary, f, indent=4)
 
+# Raw per-customer records for the interactive tenure scatter chart
+# (Region + Site filters are applied client-side against this file)
+tenure_records = (
+    df[['Region', 'Site', 'Duration_months']]
+    .dropna(subset=['Region', 'Site', 'Duration_months'])
+    .copy()
+)
+ 
+tenure_records['Duration_months'] = tenure_records['Duration_months'].round(2)
+ 
+with open(os.path.join(output_dir, "2_tenure_records.json"), "w") as f:
+    json.dump(
+        tenure_records.to_dict(orient='records'),
+        f,
+        indent=4
+    )
+
 # Graph 3 (site_loyalty.png)
 df['Tenure_months'] = df['Duration_days'] / 30
-df = df.replace('Griya Artha Sepatan', 'GRIYA ARTHA SEPATAN')
-df = df.replace('Asthara', 'ASTHARA')
 
 loyalty = (
     df.groupby('Site')['Tenure_months']
@@ -344,8 +361,7 @@ churn_export['Month'] = churn_export['Month_Period'].dt.strftime('%Y-%m')
 with open(os.path.join(output_dir, "5_churn_percentage.json"), "w") as f:
     json.dump(churn_export[['Region', 'Month', 'Monthly Churn Percentage']].to_dict(orient='records'), f, indent=4)
 
-# Graph 6 (weekly_site_churn.png) | THIS GRAPH SHOWS THE PAST 6 MONTHS FROM THE LATEST DATA |
-
+# Graph 6 (monthly_site_churn.png)
 # Generate monthly periods covering the dataset
 months = pd.period_range(
     start=df['Created'].min().to_period('M'),

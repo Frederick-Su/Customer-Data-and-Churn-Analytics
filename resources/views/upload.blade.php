@@ -13,6 +13,7 @@
             darkMode: 'class',
         }
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     <style>
@@ -43,9 +44,10 @@
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
-    @if(isset($output) && $output)
+    <!-- Uncomment this if you want to see error outputs -->
+    <!-- @if(isset($output) && $output)
         <pre class="text-xs bg-slate-900 text-red-300 p-4 rounded-lg overflow-x-auto mb-6">{{ $output }}</pre>
-    @endif
+    @endif -->
 
     <!-- Header Section -->
     <div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between border-b border-slate-200 dark:border-slate-800 pb-6 gap-4">
