@@ -151,10 +151,9 @@ function activityFilter(rawActive, rawChurn) {
             if (this.activeChart) this.activeChart.destroy();
             if (this.churnChart) this.churnChart.destroy();
 
-            // Extract unique months for X-axis
-            const allMonths = [...this.rawDataActive, ...this.rawDataChurn].map(d => d.Month);
-            const months = [...new Set(allMonths)].filter(Boolean).sort();
-
+            const regions = [...new Set(activeData.map(d => d.Region))];
+            const months = [...new Set(activeData.map(d => d.Month))].sort();
+            
             const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#f97316'];
 
             // Build Dataset: Active Customers (One line per selected region)

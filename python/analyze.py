@@ -192,7 +192,7 @@ plt.close()
 # Graph 4 (Active Customers)
 months = pd.period_range(
     start=df['Created'].min().to_period('M'),
-    end=pd.Period('2026-07', freq='M'),
+    end=eval_date.to_period('M') - 1,
     freq='M'
 )
 
@@ -436,10 +436,8 @@ site_churn_metrics_df['Monthly Churn Percentage'] = (
     site_churn_metrics_df['Active Customers']
 ) * 100
 
-# Latest month in the snapshot - 1
-latest_data_month = (
-    eval_date - pd.offsets.MonthBegin(1)
-).to_period('M')
+# End Month: Month before the evaluation date
+latest_data_month = eval_date.to_period('M') - 1
 
 first_month = latest_data_month - 11
 week_months = (
