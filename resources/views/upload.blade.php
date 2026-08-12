@@ -43,6 +43,10 @@
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
+    @if(isset($output) && $output)
+        <pre class="text-xs bg-slate-900 text-red-300 p-4 rounded-lg overflow-x-auto mb-6">{{ $output }}</pre>
+    @endif
+
     <!-- Header Section -->
     <div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between border-b border-slate-200 dark:border-slate-800 pb-6 gap-4">
         <div class="flex items-center justify-between w-full md:w-auto">
@@ -90,6 +94,8 @@
         $imgRevenueAll = $images->firstWhere('name', '7_active_revenue_all');
         $imgRevenueMonthly = $images->firstWhere('name', '7_active_revenue_monthly');
         $imgRevenueWeekly = $images->firstWhere('name', '7_active_revenue_weekly');
+
+        $imgDurationPrice = $images->firstWhere('name', '8_duration_vs_price');
 
         $weeklyChurnImages = $images->filter(fn($i) => str_contains($i['name'], '_weekly_churn'));
     @endphp
@@ -211,6 +217,12 @@
                     class="px-5 py-3 border-b-2 text-sm rounded-t-lg transition-all flex items-center gap-2">
                 Active Revenue
             </button>
+
+            <button @click="activeTab = 'relationships'"
+                    :class="activeTab === 'relationships' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 font-semibold shadow-sm' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-700'"
+                    class="px-5 py-3 border-b-2 text-sm rounded-t-lg transition-all flex items-center gap-2">
+                Customer Relationships
+            </button>
         </div>
 
         @include('analytics.sections.overview')
@@ -218,6 +230,7 @@
         @include('analytics.sections.activity')
         @include('analytics.sections.weekly')
         @include('analytics.sections.revenue')
+        @include('analytics.sections.relationships')
 
         @include('analytics.partials.modal')
     </div>

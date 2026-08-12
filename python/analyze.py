@@ -7,6 +7,8 @@ import seaborn as sns
 import numpy as np
 import json
 import matplotlib.dates as mdates
+from scipy.stats import pearsonr
+from sklearn.linear_model import LinearRegression
 
 excel_path = sys.argv[1]
 analysis_id = sys.argv[2]
@@ -54,8 +56,15 @@ df['Renewed'] = parse_date(df['Renewed'])
 df['Expired'] = df['Expired'].replace('0000-00-00 00:00:00', np.nan)
 df['Expired'] = parse_date(df['Expired'])
 
-# Calculate Duration_days based on Status Customer
-eval_date = pd.to_datetime('2026-08-02').normalize()
+# Find the latest date in Created and Renewed (this is to estimate the dataset creation date)
+latest_data_date = max(
+    df['Created'].max(),
+    df['Renewed'].max()
+)
+# This is done because some columns have dates going up to a year ahead, which messes up the graphs.
+eval_date = (
+    latest_data_date
+).normalize()
 
 # Initialize Duration_days to handle all cases
 df['Duration_days'] = np.nan
@@ -73,6 +82,20 @@ df.loc[
 
 # Remove negative outliers (There should be 2 in Jakarta)
 df = df[df['Duration_days'] >= 0]
+
+df['InvoiceDate'] = parse_date(df['InvoiceDate'])
+
+# Calculate the number of days between invoice date and expiry date
+# Calculate Invoice_to_Expiry
+df['Invoice_to_Expiry'] = (
+    df['Expired'] - df['InvoiceDate']
+).dt.days
+
+# Create a separate DataFrame specifically for Invoice_to_Expiry
+invoice_to_expiry_df = df[
+    (df['Status Customer'] == 'Aktif') &
+    (df['Invoice_to_Expiry'].notna())
+].copy()
 
 
 
@@ -323,7 +346,7 @@ with open(os.path.join(output_dir, "5_churn_percentage.json"), "w") as f:
 
 # Graph 6 (weekly_site_churn.png) | THIS GRAPH SHOWS THE PAST 6 MONTHS FROM THE LATEST DATA |
 
-# Generate weekly periods covering the dataset
+# Generate monthly periods covering the dataset
 months = pd.period_range(
     start=df['Created'].min().to_period('M'),
     end=max(
@@ -335,7 +358,7 @@ months = pd.period_range(
 
 results = []
 
-# Calculate active customers at the start of each week
+# Calculate active customers at the start of each month
 for site in df['Site'].dropna().unique():
 
     site_df = df[df['Site'] == site]
@@ -349,7 +372,7 @@ for site in df['Site'].dropna().unique():
             (site_df['Created'] <= month_start) &
             (
                 site_df['Expired'].isna() |
-                (site_df['Expired'] > month_end)
+                (site_df['Expired'] > month_start)
             )
         ).sum()
 
@@ -377,7 +400,7 @@ active_customers_by_site_month = (
 )
 
 
-# Churned customers by site and week
+# Churned customers by site and month
 churned_customers_by_site_month = (
     df_churn.groupby(['Site', 'Month_Period'])
     .size()
@@ -413,18 +436,10 @@ site_churn_metrics_df['Monthly Churn Percentage'] = (
     site_churn_metrics_df['Active Customers']
 ) * 100
 
-# Keep only the last 12 completed months
-latest_month = df['Created'].max().to_period('M')
-# Keep only the last 12 completed months based on available data
-# Exclude current month and future dates
-
-today_month = pd.Timestamp.today().to_period('M')
-
-# Latest month that actually has passed
-latest_data_month = min(
-    df['Created'].max().to_period('M'),
-    today_month - 1
-)
+# Latest month in the snapshot - 1
+latest_data_month = (
+    eval_date - pd.offsets.MonthBegin(1)
+).to_period('M')
 
 first_month = latest_data_month - 11
 week_months = (
@@ -490,7 +505,7 @@ for site in site_churn_metrics_df.index.get_level_values('Site').unique():
         json.dump(site_export[['Site', 'Month', 'Monthly Churn Percentage', 'Active Customers', 'Churned Customers']].to_dict(orient='records'), f, indent=4)
 
 # ============================================================
-# GRAPH 7 - ACTIVE REVENUE
+# GRAPH 7 - Latest Renewal Value of Currently Active Customers
 # ============================================================
 
 active_df = df[df['Status Customer'] == 'Aktif'].copy()
@@ -505,7 +520,7 @@ active_df['Renewed'] = pd.to_datetime(active_df['Renewed'], errors='coerce')
 # ------------------------------------------------------------
 
 if 'Customer ID' in active_df.columns:
-
+    
     idx = active_df.groupby('Customer ID')['Renewed'].idxmax()
     newest_active = active_df.loc[idx].copy()
 
@@ -524,7 +539,7 @@ newest_active['Year'] = newest_active['Renewed'].dt.year.astype(str)
 newest_active['MonthPeriod'] = newest_active['Renewed'].dt.to_period('M')
 newest_active['Month'] = newest_active['MonthPeriod'].dt.strftime('%b %Y')
 
-current_year = str(pd.Timestamp.today().year)
+current_year = str(eval_date.year)
 current = newest_active[newest_active['Year'] == current_year].copy()
 
 week_start = current['Renewed'].min().to_period('W').start_time
@@ -532,10 +547,6 @@ week_start = current['Renewed'].min().to_period('W').start_time
 current['Week'] = (
     ((current['Renewed'] - week_start).dt.days // 7) + 1
 ).astype(int)
-
-# ============================================================
-# GRAPH HELPER
-# ============================================================
 
 def save_revenue_chart(data, x, y, filename, title, show_labels=True):
 
@@ -577,10 +588,6 @@ def save_revenue_chart(data, x, y, filename, title, show_labels=True):
 
     plt.close()
 
-# ============================================================
-# GRAPH DATA
-# ============================================================
-
 yearly_chart = (
     newest_active
     .groupby('Year', as_index=False)['Net_Revenue']
@@ -603,9 +610,6 @@ weekly_chart = (
     .sort_values('Week')
 )
 
-# ============================================================
-# SAVE GRAPHS
-# ============================================================
 # Yearly
 save_revenue_chart(
     yearly_chart,
@@ -635,9 +639,6 @@ save_revenue_chart(
     'Latest Active Renewals by Week',
     show_labels=False
 )
-# ============================================================
-# SUMMARY HELPER
-# ============================================================
 
 def period_summary(frame, column):
 
@@ -654,10 +655,6 @@ def period_summary(frame, column):
         .sort_values([column,'Region'], ascending=[False,True])
         .to_dict('records')
     )
-
-# ============================================================
-# YEARLY SUMMARY
-# ============================================================
 
 summary_revenue = (
     newest_active
@@ -691,6 +688,256 @@ with open(os.path.join(output_dir,'7_active_revenue_monthly.json'),'w') as f:
 with open(os.path.join(output_dir,'7_active_revenue_weekly.json'),'w') as f:
 
     json.dump(period_summary(current,'Week'),f,indent=4)
+
+# Graph 8 - Contract Duration vs Price
+
+# ------------------------------------------------------------
+# Prepare data
+# ------------------------------------------------------------
+
+active = df[
+    (df['Status Customer'] == 'Aktif') &
+    (df['Invoice_to_Expiry'].notna())
+].copy()
+
+active['Invoice_to_Expiry'] = pd.to_numeric(
+    active['Invoice_to_Expiry'],
+    errors='coerce'
+)
+
+active['Price'] = pd.to_numeric(
+    active['Price'],
+    errors='coerce'
+)
+
+active = active.dropna(
+    subset=['Invoice_to_Expiry', 'Price']
+)
+
+# ------------------------------------------------------------
+# Correlation
+# ------------------------------------------------------------
+
+x = active['Invoice_to_Expiry'].values
+y = active['Price'].values
+
+if len(active) >= 2 and x.std() > 0 and y.std() > 0:
+
+    correlation, p_value = pearsonr(x, y)
+
+    # --------------------------------------------------------
+    # Linear regression
+    # --------------------------------------------------------
+
+    model = LinearRegression()
+
+    model.fit(
+        x.reshape(-1, 1),
+        y
+    )
+
+    y_pred = model.predict(
+        x.reshape(-1, 1)
+    )
+
+    r_squared = model.score(
+        x.reshape(-1, 1),
+        y
+    )
+
+    slope = model.coef_[0]
+    intercept = model.intercept_
+
+else:
+
+    correlation = None
+    p_value = None
+    r_squared = None
+    slope = None
+    intercept = None
+    y_pred = None
+
+# ------------------------------------------------------------
+# Determine relationship strength
+# ------------------------------------------------------------
+
+if correlation is not None:
+
+    abs_r = abs(correlation)
+
+    if abs_r >= 0.7:
+        strength = "Strong"
+    elif abs_r >= 0.3:
+        strength = "Moderate"
+    elif abs_r >= 0.1:
+        strength = "Weak"
+    else:
+        strength = "Very Weak"
+
+    if correlation > 0:
+        direction = "Positive"
+    elif correlation < 0:
+        direction = "Negative"
+    else:
+        direction = "None"
+
+    relationship = f"{strength} {direction}"
+
+    statistically_significant = p_value < 0.05
+
+else:
+
+    relationship = "Insufficient data"
+    statistically_significant = False
+
+# ============================================================
+# SAVE GRAPH
+# ============================================================
+
+plt.figure(figsize=(12, 7))
+
+# ------------------------------------------------------------
+# Plot clusters
+# ------------------------------------------------------------
+
+if 'Cluster' in active.columns:
+
+    for cluster in sorted(active['Cluster'].dropna().unique()):
+
+        cluster_data = active[
+            active['Cluster'] == cluster
+        ]
+
+        if cluster == -1:
+            label = "Noise"
+        else:
+            label = f"Cluster {int(cluster)}"
+
+        plt.scatter(
+            cluster_data['Invoice_to_Expiry'],
+            cluster_data['Price'],
+            s=40,
+            alpha=0.2,
+            label=label
+        )
+
+else:
+
+    plt.scatter(
+        active['Invoice_to_Expiry'],
+        active['Price'],
+        s=40,
+        alpha=0.2,
+        label='Customers'
+    )
+
+# ------------------------------------------------------------
+# Regression line
+# ------------------------------------------------------------
+
+if y_pred is not None:
+
+    sort_idx = np.argsort(x)
+
+    plt.plot(
+        x[sort_idx],
+        y_pred[sort_idx],
+        linewidth=2,
+        label=(
+            f"Linear fit "
+            f"(r = {correlation:.2f}, "
+            f"R² = {r_squared:.2f})"
+        )
+    )
+
+# ------------------------------------------------------------
+# Labels
+# ------------------------------------------------------------
+
+plt.xlabel(
+    "Invoice to Expiry (days)",
+    fontsize=12,
+    fontweight="bold"
+)
+
+plt.ylabel(
+    "Price",
+    fontsize=12,
+    fontweight="bold"
+)
+
+plt.title(
+    "Contract Duration vs Price",
+    fontsize=14,
+    pad=15
+)
+
+plt.legend()
+plt.grid(True, alpha=0.3)
+
+plt.tight_layout()
+
+plt.savefig(os.path.join(output_dir, "8_duration_vs_price.png"))
+
+plt.close()
+
+# ============================================================
+# GRAPH 8 SUMMARY
+# ============================================================
+
+def safe_round(value, decimals=2):
+    """Returns None instead of NaN so json.dump produces valid JSON (null)."""
+    if value is None or pd.isna(value):
+        return None
+    return round(float(value), decimals)
+
+summary_duration_price = {
+
+    "Customers": int(len(active)),
+
+    "Contract_Duration": {
+        "Average_Days": safe_round(active['Invoice_to_Expiry'].mean()),
+        "Median_Days": safe_round(active['Invoice_to_Expiry'].median()),
+        "Minimum_Days": safe_round(active['Invoice_to_Expiry'].min()),
+        "Maximum_Days": safe_round(active['Invoice_to_Expiry'].max()),
+        "Std_Deviation": safe_round(active['Invoice_to_Expiry'].std())
+    },
+
+    "Price": {
+        "Average": safe_round(active['Price'].mean()),
+        "Median": safe_round(active['Price'].median()),
+        "Minimum": safe_round(active['Price'].min()),
+        "Maximum": safe_round(active['Price'].max()),
+        "Std_Deviation": safe_round(active['Price'].std())
+    },
+
+    "Correlation": {
+        "Pearson_R": safe_round(correlation, 4),
+        "R_Squared": safe_round(r_squared, 4),
+        "P_Value": (
+            float(p_value)
+            if p_value is not None and not pd.isna(p_value)
+            else None
+        )
+    },
+
+    "Regression": {
+        "Slope": safe_round(slope, 4),
+        "Intercept": safe_round(intercept, 2)
+    },
+
+    "Interpretation": {
+        "Relationship": relationship,
+        "Statistically_Significant": bool(statistically_significant)
+    }
+}
+
+# ------------------------------------------------------------
+# Save JSON
+# ------------------------------------------------------------
+
+with open(os.path.join(output_dir, "8_duration_vs_price.json"), "w") as f:
+    json.dump(summary_duration_price, f, indent=4, allow_nan=False)
 
 # ============================================================
 # DASHBOARD SUMMARY
