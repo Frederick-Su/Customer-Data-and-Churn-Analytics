@@ -19,6 +19,8 @@
         [x-cloak] { display: none !important; }
     </style>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <div class="max-w-screen-2xl mx-auto px-8 lg:px-12 py-10">
 </head>
 <body

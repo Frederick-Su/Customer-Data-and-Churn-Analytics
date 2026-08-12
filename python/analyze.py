@@ -137,6 +137,7 @@ with open(os.path.join(output_dir, "2_tenure.json"), "w") as f:
 # Graph 3 (site_loyalty.png)
 df['Tenure_months'] = df['Duration_days'] / 30
 df = df.replace('Griya Artha Sepatan', 'GRIYA ARTHA SEPATAN')
+df = df.replace('Asthara', 'ASTHARA')
 
 loyalty = (
     df.groupby('Site')['Tenure_months']
@@ -211,6 +212,12 @@ plt.xticks(rotation=45)
 plt.tight_layout()
 plt.savefig(os.path.join(output_dir, "4_active_customers.png"))
 plt.close()
+
+active_export = active_endofmonth_df.copy()
+active_export['Month'] = active_export['Month'].dt.strftime('%Y-%m')
+
+with open(os.path.join(output_dir, "4_active_customers.json"), "w") as f:
+    json.dump(active_export.to_dict(orient='records'), f, indent=4)
 
 # Graph 5 (churn_percentage.png)
 results = []
@@ -307,6 +314,12 @@ plt.xticks(rotation=45, ha='right')
 plt.tight_layout()
 plt.savefig(os.path.join(output_dir, "5_churn_percentage.png"))
 plt.close()
+
+churn_export = regional_churn_metrics_df.reset_index()
+churn_export['Month'] = churn_export['Month_Period'].dt.strftime('%Y-%m')
+
+with open(os.path.join(output_dir, "5_churn_percentage.json"), "w") as f:
+    json.dump(churn_export[['Region', 'Month', 'Monthly Churn Percentage']].to_dict(orient='records'), f, indent=4)
 
 # Graph 6 (weekly_site_churn.png) | THIS GRAPH SHOWS THE PAST 6 MONTHS FROM THE LATEST DATA |
 
@@ -469,6 +482,13 @@ for site in site_churn_metrics_df.index.get_level_values('Site').unique():
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f"6_{site}_weekly_churn.png"))
     plt.close()
+
+    site_export = site_churn_metrics_df.reset_index()
+    site_export['Month'] = site_export['Month_Period'].dt.strftime('%Y-%m')
+
+    with open(os.path.join(output_dir, "6_site_monthly_churn.json"), "w") as f:
+        json.dump(site_export[['Site', 'Month', 'Monthly Churn Percentage', 'Active Customers', 'Churned Customers']].to_dict(orient='records'), f, indent=4)
+
 # ============================================================
 # GRAPH 7 - ACTIVE REVENUE
 # ============================================================

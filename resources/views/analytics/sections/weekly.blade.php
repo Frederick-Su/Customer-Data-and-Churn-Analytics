@@ -1,25 +1,146 @@
-<div x-show="activeTab === 'weekly'" x-cloak class="space-y-6">
+<div x-show="activeTab === 'weekly'" 
+     x-cloak 
+     x-data="siteChurnFilter(@js($summaries['6_site_monthly_churn'] ?? []))"
+     x-init="$nextTick(() => initChart())"
+     class="space-y-6">
+
     <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
         <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100 mb-1">Monthly Churn Rate by Site</h2>
-        <p class="text-slate-500 dark:text-slate-400 text-xs mb-6">Historical trends across active sites over the last 12 months.</p>
+        <p class="text-slate-500 dark:text-slate-400 text-xs mb-6">Filter specific sites and timeframes to compare monthly churn trends dynamically.</p>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            @foreach($weeklyChurnImages as $siteImg)
-                @php $siteTitle = str_replace(['6_', '_weekly_churn'], '', $siteImg['name']) . ' Weekly Churn'; @endphp
-                <div class="border border-slate-200 dark:border-slate-700 rounded-xl p-4 bg-slate-50/50 dark:bg-slate-900/30 hover:shadow-md transition-shadow">
-                    <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                        {{ str_replace(['6_', '_weekly_churn'], '', $siteImg['name']) }}
-                    </h3>
-
-                    @include('analytics.partials.chart-panel', [
-                        'image' => $siteImg,
-                        'modal' => $siteTitle,
-                        'alt' => $siteImg['name'],
-                        'boxClass' => 'bg-white dark:bg-slate-800 rounded-lg p-2 border border-slate-100 dark:border-slate-700/50 cursor-pointer group',
-                        'imageClass' => 'w-full h-auto object-contain max-h-[280px] rounded group-hover:scale-[1.01] transition-transform duration-200',
-                    ])
+        <!-- Filter Form -->
+        <form @submit.prevent="applyFilter()" class="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-100 dark:border-slate-700/50 mb-6 space-y-4">
+            <div>
+                <!-- Header with Select All / Deselect All Controls -->
+                <div class="flex items-center justify-between mb-2">
+                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        Filter Sites 
+                        <span class="font-normal text-slate-400" x-text="`(${selectedSites.length}/${availableSites.length} selected)`"></span>
+                    </label>
+                    
+                    <div class="flex items-center gap-2 text-xs">
+                        <button type="button" @click="selectAll()" class="text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
+                            Select All
+                        </button>
+                        <span class="text-slate-300 dark:text-slate-700">|</span>
+                        <button type="button" @click="deselectAll()" class="text-slate-500 dark:text-slate-400 hover:underline font-medium">
+                            Deselect All
+                        </button>
+                    </div>
                 </div>
-            @endforeach
+
+                <!-- Checkboxes Container -->
+                <div class="flex flex-wrap gap-2 max-h-32 overflow-y-auto pr-2">
+                    <template x-for="site in availableSites" :key="site">
+                        <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                            <input type="checkbox" :value="site" x-model="selectedSites" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                            <span x-text="site"></span>
+                        </label>
+                    </template>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-end gap-4 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Start Month</label>
+                    <input type="month" x-model="tempStart" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm rounded-xl px-3 py-1.5 text-slate-800 dark:text-slate-100">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">End Month</label>
+                    <input type="month" x-model="tempEnd" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm rounded-xl px-3 py-1.5 text-slate-800 dark:text-slate-100">
+                </div>
+
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2 rounded-xl transition-colors text-sm shadow-sm">
+                    Apply Filters
+                </button>
+            </div>
+        </form>
+
+        <!-- Interactive Multi-Site Canvas -->
+        <div class="rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-700/50 p-4">
+            <canvas id="siteChurnChart" class="max-h-[450px] w-full"></canvas>
         </div>
     </div>
 </div>
+
+<script>
+function siteChurnFilter(siteData) {
+    return {
+        rawData: siteData,
+        availableSites: [],
+        selectedSites: [],
+        tempStart: '',
+        tempEnd: '',
+        chart: null,
+
+        initChart() {
+            this.availableSites = [...new Set(this.rawData.map(d => d.Site))];
+            this.selectedSites = [...this.availableSites]; // Default to all selected
+            this.renderChart(this.rawData);
+        },
+
+        // Helper functions for Select / Deselect actions
+        selectAll() {
+            this.selectedSites = [...this.availableSites];
+        },
+
+        deselectAll() {
+            this.selectedSites = [];
+        },
+
+        applyFilter() {
+            let filtered = this.rawData;
+
+            if (this.selectedSites.length > 0) {
+                filtered = filtered.filter(d => this.selectedSites.includes(d.Site));
+            } else {
+                // If no sites selected, pass an empty dataset
+                filtered = [];
+            }
+
+            if (this.tempStart) {
+                filtered = filtered.filter(d => d.Month >= this.tempStart);
+            }
+            if (this.tempEnd) {
+                filtered = filtered.filter(d => d.Month <= this.tempEnd);
+            }
+
+            this.renderChart(filtered);
+        },
+
+        renderChart(data) {
+            if (this.chart) this.chart.destroy();
+
+            const months = [...new Set(data.map(d => d.Month))].sort();
+
+            const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#f97316', '#14b8a6'];
+
+            const datasets = this.selectedSites.map((site, idx) => ({
+                label: site,
+                data: months.map(m => {
+                    const row = data.find(d => d.Site === site && d.Month === m);
+                    return row ? row['Monthly Churn Percentage'] : 0;
+                }),
+                borderColor: colors[idx % colors.length],
+                tension: 0.2
+            }));
+
+            this.chart = new Chart(document.getElementById('siteChurnChart'), {
+                type: 'line',
+                data: { labels: months, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { 
+                            title: { display: true, text: 'Churn Percentage (%)' },
+                            ticks: { callback: v => v + '%' } 
+                        }
+                    }
+                }
+            });
+        }
+    }
+}
+</script>
