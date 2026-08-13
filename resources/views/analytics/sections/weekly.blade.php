@@ -54,6 +54,10 @@
                 <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2 rounded-xl transition-colors text-sm shadow-sm">
                     Apply Filters
                 </button>
+
+                <button type="button" @click="resetFilter()" class="text-xs text-slate-500 dark:text-slate-400 hover:underline py-2">
+                    Reset
+                </button>
             </div>
         </form>
 
@@ -75,9 +79,24 @@ function siteChurnFilter(siteData) {
         chart: null,
 
         initChart() {
-            this.availableSites = [...new Set(this.rawData.map(d => d.Site))];
+            // Extract unique sites
+            this.availableSites = [...new Set(this.rawData.map(d => d.Site))].filter(Boolean);
             this.selectedSites = [...this.availableSites]; // Default to all selected
-            this.renderChart(this.rawData);
+
+            // Extract unique sorted months
+            const months = [...new Set(this.rawData.map(d => d.Month))].filter(Boolean).sort();
+
+            if (months.length > 0) {
+                // Find latest month in dataset
+                const latestMonth = months[months.length - 1];
+                const [year, month] = latestMonth.split('-');
+
+                // Subtract 1 year
+                const startYear = parseInt(year, 10) - 1;
+                this.tempStart = `${startYear}-${month}`;
+            }
+
+            this.applyFilter();
         },
 
         // Helper functions for Select / Deselect actions
@@ -109,10 +128,29 @@ function siteChurnFilter(siteData) {
             this.renderChart(filtered);
         },
 
+        resetFilter() {
+            this.selectAll();
+
+            // Recalculate default 1-year window on reset
+            const months = [...new Set(this.rawData.map(d => d.Month))].filter(Boolean).sort();
+            if (months.length > 0) {
+                const latestMonth = months[months.length - 1];
+                const [year, month] = latestMonth.split('-');
+
+                const startYear = parseInt(year, 10) - 1;
+                this.tempStart = `${startYear}-${month}`;
+            } else {
+                this.tempStart = '';
+                this.tempEnd = '';
+            }
+
+            this.applyFilter();
+        },
+
         renderChart(data) {
             if (this.chart) this.chart.destroy();
 
-            const months = [...new Set(data.map(d => d.Month))].sort();
+            const months = [...new Set(data.map(d => d.Month))].filter(Boolean).sort();
 
             const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#f97316', '#14b8a6'];
 

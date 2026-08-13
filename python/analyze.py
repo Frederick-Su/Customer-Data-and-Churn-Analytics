@@ -455,18 +455,14 @@ site_churn_metrics_df['Monthly Churn Percentage'] = (
 # End Month: Month before the evaluation date
 latest_data_month = eval_date.to_period('M') - 1
 
-first_month = latest_data_month - 11
 week_months = (
     site_churn_metrics_df
     .index
     .get_level_values('Month_Period')
-    .to_timestamp()
-    .to_period('M')
 )
 
 site_churn_metrics_df = site_churn_metrics_df[
-    (week_months >= first_month) &
-    (week_months <= latest_data_month)
+    week_months <= latest_data_month
 ]
 
 # Plot one graph per site
