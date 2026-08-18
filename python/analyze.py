@@ -259,7 +259,7 @@ active_export['Month'] = active_export['Month'].dt.strftime('%Y-%m')
 with open(os.path.join(output_dir, "4_active_customers.json"), "w") as f:
     json.dump(active_export.to_dict(orient='records'), f, indent=4)
 
-# Graph 5 (churn_percentage.png)
+# Graph 5 (Active Customers & Churn Percentage)
 results = []
 
 for region in df['Region'].dropna().unique():
@@ -330,31 +330,6 @@ regional_churn_metrics_df['Monthly Churn Percentage'] = (
      regional_churn_metrics_df['Active Customers (start of month)']) * 100
 )
 
-# Plot the monthly churn percentage by region
-plt.figure(figsize=(22, 12))
-ax = plt.gca() # Get current axes
-
-for region in regional_churn_metrics_df.index.get_level_values('Region').unique():
-    subset = regional_churn_metrics_df.xs(region, level='Region')
-    plt.plot(subset.index.to_timestamp(), subset['Monthly Churn Percentage'], label=region)
-
-plt.title('Monthly Churn Percentage Over Time by Region')
-plt.xlabel('Month')
-plt.ylabel('Churn Percentage (%)')
-plt.legend(title='Region')
-
-# Set minor ticks for monthly intervals
-ax.xaxis.set_minor_locator(mdates.MonthLocator())
-
-# Add major and minor grid lines
-plt.grid(True, which='major', linestyle='-', alpha=0.7) # Major grid lines
-plt.grid(True, which='minor', linestyle=':', alpha=0.5) # Minor grid lines
-
-plt.xticks(rotation=45, ha='right')
-plt.tight_layout()
-plt.savefig(os.path.join(output_dir, "5_churn_percentage.png"))
-plt.close()
-
 churn_export = regional_churn_metrics_df.reset_index()
 churn_export['Month'] = churn_export['Month_Period'].dt.strftime('%Y-%m')
 
@@ -411,15 +386,13 @@ active_df['Month_Period'] = active_df['Month'].dt.to_period('M')
 
 # Active customers by site and month
 active_customers_by_site_month = (
-    active_df.groupby(['Site', 'Month_Period'])['Active Customers']
-    .sum()
+    active_df.groupby(['Site', 'Month_Period'])['Active Customers'].sum()
 )
 
 
 # Churned customers by site and month
 churned_customers_by_site_month = (
-    df_churn.groupby(['Site', 'Month_Period'])
-    .size()
+    df_churn.groupby(['Site', 'Month_Period']).size()
 )
 
 
@@ -465,54 +438,15 @@ site_churn_metrics_df = site_churn_metrics_df[
     week_months <= latest_data_month
 ]
 
-# Plot one graph per site
-for site in site_churn_metrics_df.index.get_level_values('Site').unique():
+# Map Site to Region from the dataset
+site_region_map = df.dropna(subset=['Site', 'Region']).drop_duplicates('Site').set_index('Site')['Region'].to_dict()
 
-    subset = site_churn_metrics_df.xs(site, level='Site').copy()
+site_export = site_churn_metrics_df.reset_index()
+site_export['Month'] = site_export['Month_Period'].dt.strftime('%Y-%m')
+site_export['Region'] = site_export['Site'].map(site_region_map)
 
-
-    # Ignore months before the site existed
-    site_created = (
-        df.loc[df['Site'] == site, 'Created']
-        .min()
-        .to_period('M')
-    )
-
-    subset = subset[subset.index >= site_created]
-
-
-    plt.figure(figsize=(12, 5))
-    ax = plt.gca()
-
-
-    plt.plot(
-        subset.index.to_timestamp(),
-        subset['Monthly Churn Percentage'],
-        marker='o',
-        linewidth=2
-    )
-
-
-    plt.title(f'Monthly Churn Percentage - {site}')
-    plt.xlabel('Month')
-    plt.ylabel('Churn Percentage (%)')
-
-    # Show month labels
-    ax.xaxis.set_major_locator(mdates.MonthLocator())
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
-
-
-    plt.grid(True, alpha=0.7)
-    plt.xticks(rotation=45, ha='right')
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, f"6_{site}_weekly_churn.png"))
-    plt.close()
-
-    site_export = site_churn_metrics_df.reset_index()
-    site_export['Month'] = site_export['Month_Period'].dt.strftime('%Y-%m')
-
-    with open(os.path.join(output_dir, "6_site_monthly_churn.json"), "w") as f:
-        json.dump(site_export[['Site', 'Month', 'Monthly Churn Percentage', 'Active Customers', 'Churned Customers']].to_dict(orient='records'), f, indent=4)
+with open(os.path.join(output_dir, "6_site_monthly_churn.json"), "w") as f:
+    json.dump(site_export[['Region', 'Site', 'Month', 'Monthly Churn Percentage', 'Active Customers', 'Churned Customers']].to_dict(orient='records'), f, indent=4)
 
 # ============================================================
 # GRAPH 7 - Latest Renewal Value of Currently Active Customers
