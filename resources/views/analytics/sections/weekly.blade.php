@@ -234,10 +234,11 @@ function siteChurnFilter(siteData) {
                 label: site,
                 data: months.map(m => {
                     const row = data.find(d => d.Site === site && d.Month === m);
-                    return row ? row['Monthly Churn Percentage'] : 0;
+                    return row ? row['Monthly Churn Percentage'] : null;
                 }),
                 borderColor: colors[idx % colors.length],
-                tension: 0.2
+                tension: 0.2,
+                spanGaps: false
             }));
 
             this.chart = new Chart(document.getElementById('siteChurnChart'), {
