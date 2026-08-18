@@ -10,6 +10,11 @@ Route::get('/', function () {
 });
 
 Route::post('/analyze', function (Request $request) {
+    // Running pandas/matplotlib/sklearn over a real spreadsheet is a
+    // legitimately slow class of request; PHP's default 60s is tight for
+    // that regardless of dataset size, so give this route more headroom.
+    set_time_limit(300);
+
     $analysisId = Str::uuid()->toString();
     $request->validate([
         'excel' => 'required|mimes:xlsx,xls,csv'

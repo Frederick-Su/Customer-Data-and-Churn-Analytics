@@ -19,10 +19,6 @@
     <style>
         [x-cloak] { display: none !important; }
     </style>
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<div class="max-w-screen-2xl mx-auto px-8 lg:px-12 py-10">
 </head>
 <body
     x-data="{
@@ -41,6 +37,7 @@
     x-init="$watch('darkMode', val => localStorage.setItem('theme', val ? 'dark' : 'light'))"
     :class="{ 'dark bg-slate-900 text-slate-100': darkMode, 'bg-slate-50 text-slate-800': !darkMode }"
     class="font-['Satoshi',sans-serif] antialiased min-h-screen transition-colors duration-200"
+>
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
@@ -220,6 +217,12 @@
                 Active Revenue
             </button>
 
+            <button @click="activeTab = 'ltv'"
+                    :class="activeTab === 'ltv' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 font-semibold shadow-sm' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-700'"
+                    class="px-5 py-3 border-b-2 text-sm rounded-t-lg transition-all flex items-center gap-2">
+                Lifetime Value
+            </button>
+
             <button @click="activeTab = 'relationships'"
                     :class="activeTab === 'relationships' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 font-semibold shadow-sm' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-700'"
                     class="px-5 py-3 border-b-2 text-sm rounded-t-lg transition-all flex items-center gap-2">
@@ -232,6 +235,7 @@
         @include('analytics.sections.activity')
         @include('analytics.sections.weekly')
         @include('analytics.sections.revenue')
+        @include('analytics.sections.ltv')
         @include('analytics.sections.relationships')
 
         @include('analytics.partials.modal')
@@ -262,7 +266,6 @@
         </div>
     </div>
     @endif
-</div>
 </div>
 </body>
 </html>
