@@ -954,6 +954,124 @@ with open(os.path.join(output_dir, "8_duration_vs_price.json"), "w") as f:
     json.dump(summary_duration_price, f, indent=4, allow_nan=False)
 
 # ============================================================
+# GRAPH 9 - Cohort LTV Curves (Avg. Cumulative Revenue by Months Since Signup)
+# ============================================================
+
+# 'Customer ID' is the column used elsewhere in this script (Graph 7).
+# Falling back to 'CustomerId' in case a dataset ever uses that spelling instead.
+CUSTOMER_ID_COL = 'Customer ID' if 'Customer ID' in df.columns else 'CustomerId'
+MIN_COHORT_SIZE = 10
+
+cohort_df = df.dropna(subset=[CUSTOMER_ID_COL, 'InvoiceDate', 'Created']).copy()
+cohort_df['Price'] = pd.to_numeric(cohort_df['Price'], errors='coerce')
+cohort_df = cohort_df.dropna(subset=['Price'])
+
+# Cohort = the month the customer was first created (their signup month)
+cohort_df['CohortMonth'] = (
+    cohort_df.groupby(CUSTOMER_ID_COL)['Created']
+    .transform('min')
+    .dt.to_period('M')
+)
+cohort_df['InvoiceMonth'] = cohort_df['InvoiceDate'].dt.to_period('M')
+
+# Months since signup, for each invoice. Computed directly from year/month
+# instead of Period subtraction + .apply(), which stays fully vectorized.
+cohort_df['CohortPeriod'] = (
+    (cohort_df['InvoiceMonth'].dt.year - cohort_df['CohortMonth'].dt.year) * 12 +
+    (cohort_df['InvoiceMonth'].dt.month - cohort_df['CohortMonth'].dt.month)
+)
+
+# Drop invoices that somehow predate the customer's own signup month
+cohort_df = cohort_df[cohort_df['CohortPeriod'] >= 0]
+
+# Running total of revenue per customer, in chronological order
+cohort_df = cohort_df.sort_values([CUSTOMER_ID_COL, 'InvoiceDate'])
+cohort_df['CumulativeLTV'] = (
+    cohort_df.groupby(CUSTOMER_ID_COL)['Price'].cumsum()
+)
+
+# Collapse multiple invoices in the same CohortPeriod down to the latest running total.
+# This is still SPARSE: a customer only has a row here for months where they
+# actually invoiced. Averaging directly on this would only average whichever
+# customers happened to transact in that exact month, which produces a
+# sawtooth instead of a real cumulative curve (customers who paid nothing
+# that month silently drop out of the average instead of carrying their
+# running total forward).
+cohort_period_ltv = (
+    cohort_df.groupby([CUSTOMER_ID_COL, 'CohortMonth', 'CohortPeriod'])['CumulativeLTV']
+    .last()
+    .reset_index()
+)
+
+# --- Build a full (customer, month) grid and forward-fill between invoices ---
+
+eval_period = eval_date.to_period('M')
+
+# One row per customer: their cohort month, and how many months of history
+# they could possibly have by now given when their cohort started.
+customer_cohort = (
+    cohort_df.groupby(CUSTOMER_ID_COL)['CohortMonth']
+    .first()
+    .reset_index()
+)
+customer_cohort['MaxObservablePeriod'] = (
+    (eval_period.year - customer_cohort['CohortMonth'].dt.year) * 12 +
+    (eval_period.month - customer_cohort['CohortMonth'].dt.month)
+)
+customer_cohort = customer_cohort[customer_cohort['MaxObservablePeriod'] >= 0]
+
+# Build the full grid without a per-customer Python loop: for each customer
+# we want rows CohortPeriod = 0..MaxObservablePeriod. `np.arange(n) for n in
+# ...` per customer is correct but slow at scale (this is the same class of
+# bug that caused the earlier 60s timeout), so the 0..n-1 index per customer
+# is computed directly instead via a cumulative-offset trick.
+n_periods = (customer_cohort['MaxObservablePeriod'].values + 1)
+block_starts = np.cumsum(n_periods) - n_periods
+period_index = np.arange(n_periods.sum()) - np.repeat(block_starts, n_periods)
+
+grid = pd.DataFrame({
+    CUSTOMER_ID_COL: np.repeat(customer_cohort[CUSTOMER_ID_COL].values, n_periods),
+    'CohortMonth': np.repeat(customer_cohort['CohortMonth'].values, n_periods),
+    'CohortPeriod': period_index,
+})
+
+# Merge in the actual invoice-period running totals (sparse), then forward-fill
+# within each customer so months without a new invoice carry the last known
+# cumulative total instead of dropping that customer out of the average.
+# Customers get 0 for any months before their first invoice.
+grid = grid.merge(
+    cohort_period_ltv[[CUSTOMER_ID_COL, 'CohortPeriod', 'CumulativeLTV']],
+    on=[CUSTOMER_ID_COL, 'CohortPeriod'],
+    how='left'
+)
+grid = grid.sort_values([CUSTOMER_ID_COL, 'CohortPeriod'])
+grid['CumulativeLTV'] = grid.groupby(CUSTOMER_ID_COL)['CumulativeLTV'].ffill()
+grid['CumulativeLTV'] = grid['CumulativeLTV'].fillna(0)
+
+# Average cumulative LTV across every customer in a cohort (not just the ones
+# who happened to invoice that exact month), at each period since signup
+cohort_curve = (
+    grid.groupby(['CohortMonth', 'CohortPeriod'])
+    .agg(
+        Avg_Cumulative_LTV=('CumulativeLTV', 'mean'),
+        Customers=('CumulativeLTV', 'count')
+    )
+    .reset_index()
+)
+
+# Drop cohorts too small to be statistically meaningful
+cohort_sizes = customer_cohort.groupby('CohortMonth')[CUSTOMER_ID_COL].nunique()
+valid_cohorts = cohort_sizes[cohort_sizes >= MIN_COHORT_SIZE].index
+cohort_curve = cohort_curve[cohort_curve['CohortMonth'].isin(valid_cohorts)]
+
+cohort_curve['CohortMonth'] = cohort_curve['CohortMonth'].astype(str)
+cohort_curve['Avg_Cumulative_LTV'] = cohort_curve['Avg_Cumulative_LTV'].round(2)
+cohort_curve = cohort_curve.sort_values(['CohortMonth', 'CohortPeriod'])
+
+with open(os.path.join(output_dir, "9_cohort_ltv.json"), "w") as f:
+    json.dump(cohort_curve.to_dict(orient='records'), f, indent=4)
+
+# ============================================================
 # DASHBOARD SUMMARY
 # ============================================================
 
