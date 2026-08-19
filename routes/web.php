@@ -28,10 +28,25 @@ Route::post('/analyze', function (Request $request) {
     $script = base_path('python/analyze.py');
     $file = Storage::path($path);
 
-    // Delete previous results
-    Storage::disk('public')->delete(
-        Storage::disk('public')->files("results/$analysisId")
-    );
+    // Delete uploaded spreadsheets and results older than 2 hours
+    $directories = Storage::disk('public')->directories('results');
+    $expirationTime = now()->subHours(2)->timestamp;
+
+    foreach ($directories as $dir) {
+        // Clean up old result
+        if (Storage::disk('public')->lastModified($dir) < $expirationTime) {
+            Storage::disk('public')->deleteDirectory($dir);
+        }
+    }
+
+    $uploadedFiles = Storage::files('uploads');
+
+    foreach ($uploadedFiles as $oldFile) {
+        // Clean up old spreadsheets
+        if (Storage::lastModified($oldFile) < $expirationTime) {
+            Storage::delete($oldFile);
+        }
+    }
     
     // Run Python
     $output = shell_exec(
