@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\Process\Process;
+use Symfony\Component\Process\Exception\ProcessFailedException;
 
 Route::get('/', function () {
     return view('upload');
@@ -49,9 +51,23 @@ Route::post('/analyze', function (Request $request) {
     }
     
     // Run Python
-    $output = shell_exec(
-        "\"$python\" \"$script\" \"$file\" \"$analysisId\" 2>&1"
+    $process = new Process(
+        command: [$python, $script, $file, $analysisId],
+        env: array_merge($_SERVER, $_ENV, [
+            'SYSTEMROOT' => getenv('SYSTEMROOT') ?: 'C:\\Windows',
+            'WINDIR' => getenv('WINDIR') ?: 'C:\\Windows',
+            'MPLCONFIGDIR' => storage_path('app/temp/matplotlib')
+        ])
     );
+
+    $process->setTimeout(300);
+    $process->run();
+
+    if (!$process->isSuccessful()) {
+        throw new ProcessFailedException($process);
+    }
+
+    $output = $process->getOutput();
 
     // Read all images
     $images = collect(Storage::disk('public')->files("results/$analysisId"))
