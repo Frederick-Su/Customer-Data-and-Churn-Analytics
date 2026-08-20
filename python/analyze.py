@@ -898,9 +898,12 @@ def calc_calendar_months(start_col, end_col):
     not_reached = end_col.dt.day < start_col.dt.day
     return months - not_reached.astype(int)
 
-customer_df = df.dropna(subset=[CUSTOMER_ID_COL, 'InvoiceDate', 'Created']).copy()
-customer_df['Price'] = pd.to_numeric(customer_df['Price'], errors='coerce')
-customer_df = customer_df.dropna(subset=['Price'])
+# Clean Data & Deduplicate to 1 Row per Customer
+customer_df = df.dropna(subset=[CUSTOMER_ID_COL, 'Created', 'Expired']).copy()
+customer_df['Price'] = pd.to_numeric(customer_df['Price'], errors='coerce').fillna(0)
+
+# Keep the latest record per customer if duplicate rows exist
+customer_df = customer_df.sort_values('Created').groupby(CUSTOMER_ID_COL).last().reset_index()
 
 # Calculate Billing Cycle & Total Tenure
 # Primary cycle: InvoiceDate to Expired
