@@ -41,14 +41,14 @@
             <div class="flex flex-wrap items-end gap-4 pt-3 border-t border-slate-100 dark:border-slate-700/50">
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Start Month</label>
-                    <input type="month" x-model="tempStart" 
-                           class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm rounded-xl px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="month" x-model="tempStart" @click="$el.showPicker && $el.showPicker()"
+                           class="cursor-pointer bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm rounded-xl px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">End Month</label>
-                    <input type="month" x-model="tempEnd" 
-                           class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm rounded-xl px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="month" x-model="tempEnd" @click="$el.showPicker && $el.showPicker()"
+                           class="cursor-pointer bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm rounded-xl px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 </div>
 
                 <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2 rounded-xl transition-colors text-sm shadow-sm">
@@ -56,7 +56,7 @@
                 </button>
 
                 <button type="button" @click="resetFilter()" class="text-xs text-slate-500 dark:text-slate-400 hover:underline py-2">
-                    Reset
+                    Reset Date
                 </button>
             </div>
         </form>
@@ -143,7 +143,6 @@ function activityFilter(rawActive, rawChurn) {
         resetFilter() {
             this.tempStart = '';
             this.tempEnd = '';
-            this.selectAllRegions();
             this.renderCharts(this.rawDataActive, this.rawDataChurn);
         },
 

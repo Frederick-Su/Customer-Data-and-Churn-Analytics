@@ -66,12 +66,12 @@
             <div class="flex flex-wrap items-end gap-4 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Start Month</label>
-                    <input type="month" x-model="tempStart" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm rounded-xl px-3 py-1.5 text-slate-800 dark:text-slate-100">
+                    <input type="month" x-model="tempStart" @click="$el.showPicker && $el.showPicker()" class="cursor-pointer bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm rounded-xl px-3 py-1.5 text-slate-800 dark:text-slate-100">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">End Month</label>
-                    <input type="month" x-model="tempEnd" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm rounded-xl px-3 py-1.5 text-slate-800 dark:text-slate-100">
+                    <input type="month" x-model="tempEnd" @click="$el.showPicker && $el.showPicker()" class="cursor-pointer bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm rounded-xl px-3 py-1.5 text-slate-800 dark:text-slate-100">
                 </div>
 
                 <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2 rounded-xl transition-colors text-sm shadow-sm">
@@ -79,7 +79,7 @@
                 </button>
 
                 <button type="button" @click="resetFilter()" class="text-xs text-slate-500 dark:text-slate-400 hover:underline py-2">
-                    Reset
+                    Reset Date
                 </button>
             </div>
         </form>
@@ -204,10 +204,6 @@ function siteChurnFilter(siteData) {
         },
 
         resetFilter() {
-            this.selectedRegions = [...this.regions];
-            this.selectedSites = [...this.availableSites];
-            this.siteSearch = '';
-
             const months = [...new Set(this.rawData.map(d => d.Month))].filter(Boolean).sort();
             if (months.length > 0) {
                 const latestMonth = months[months.length - 1];
