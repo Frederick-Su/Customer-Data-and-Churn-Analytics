@@ -938,7 +938,7 @@ customer_df['MaxObservablePeriod'] = (
 )
 customer_df = customer_df[customer_df['MaxObservablePeriod'] >= 0]
 
-n_periods = (customer_df['MaxObservablePeriod'].values + 1)
+n_periods = (customer_df['MaxObservablePeriod'].values)
 block_starts = np.cumsum(n_periods) - n_periods
 period_index = np.arange(n_periods.sum()) - np.repeat(block_starts, n_periods)
 
