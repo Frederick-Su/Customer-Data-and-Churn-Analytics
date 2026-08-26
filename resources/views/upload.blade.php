@@ -50,6 +50,9 @@
     <div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between border-b border-slate-200 dark:border-slate-800 pb-6 gap-4">
         <div class="flex items-center justify-between w-full md:w-auto">
             <div>
+                <a href="/" class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 mb-3 transition-colors">
+                    <span class="mr-1">&larr;</span> Back to Portal
+                </a>
                 <h1 class="text-3xl font-bold tracking-tight">VNET-Analytics</h1>
                 <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Upload an standardized VNET data format Excel or CSV file to generate analytics and visualizations.</p>
             </div>
