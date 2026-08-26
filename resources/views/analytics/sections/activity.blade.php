@@ -5,32 +5,35 @@
      class="space-y-6">
 
     <!-- Interactive Filter Form -->
-    <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
-        <form @submit.prevent="applyFilter()" class="space-y-4">
+    <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 rounded-sm transition-colors">
+        <div class="px-5 py-3 border-b border-graphite-200 dark:border-graphite-800">
+            <h3 class="font-mono text-[11px] uppercase tracking-[0.14em] text-graphite-400 dark:text-graphite-500">Filter Controls</h3>
+        </div>
+        <form @submit.prevent="applyFilter()" class="p-5 space-y-4">
             
             <!-- Region Checkbox Section -->
             <div>
                 <div class="flex items-center justify-between mb-2">
-                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400">
-                        Filter Regions 
-                        <span class="font-normal text-slate-400" x-text="`(${selectedRegions.length}/${availableRegions.length} selected)`"></span>
+                    <label class="font-mono text-[11px] uppercase tracking-wider text-graphite-400 dark:text-graphite-500">
+                        Regions 
+                        <span class="font-normal text-graphite-400 normal-case" x-text="`(${selectedRegions.length}/${availableRegions.length} selected)`"></span>
                     </label>
                     
-                    <div class="flex items-center gap-2 text-xs">
-                        <button type="button" @click="selectAllRegions()" class="text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
-                            Select All
+                    <div class="flex items-center gap-2 font-mono text-[11px] uppercase">
+                        <button type="button" @click="selectAllRegions()" class="text-signal-600 dark:text-signal-400 hover:underline font-medium">
+                            All
                         </button>
-                        <span class="text-slate-300 dark:text-slate-700">|</span>
-                        <button type="button" @click="deselectAllRegions()" class="text-slate-500 dark:text-slate-400 hover:underline font-medium">
-                            Deselect All
+                        <span class="text-graphite-300 dark:text-graphite-700">|</span>
+                        <button type="button" @click="deselectAllRegions()" class="text-graphite-500 dark:text-graphite-400 hover:underline font-medium">
+                            None
                         </button>
                     </div>
                 </div>
 
                 <div class="flex flex-wrap gap-2 max-h-32 overflow-y-auto pr-2">
                     <template x-for="region in availableRegions" :key="region">
-                        <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
-                            <input type="checkbox" :value="region" x-model="selectedRegions" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                        <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-mono bg-graphite-50 dark:bg-graphite-950/40 border border-graphite-200 dark:border-graphite-700 cursor-pointer text-graphite-700 dark:text-graphite-300 hover:border-signal-600 dark:hover:border-signal-500 transition-colors">
+                            <input type="checkbox" :value="region" x-model="selectedRegions" class="rounded-sm border-graphite-300 text-signal-600 focus:ring-signal-500">
                             <span x-text="region"></span>
                         </label>
                     </template>
@@ -38,24 +41,24 @@
             </div>
 
             <!-- Date Inputs & Buttons -->
-            <div class="flex flex-wrap items-end gap-4 pt-3 border-t border-slate-100 dark:border-slate-700/50">
+            <div class="flex flex-wrap items-end gap-4 pt-3 border-t border-graphite-200 dark:border-graphite-800">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Start Month</label>
+                    <label class="block font-mono text-[11px] uppercase tracking-wider text-graphite-400 dark:text-graphite-500 mb-1">Start Month</label>
                     <input type="month" x-model="tempStart" @click="$el.showPicker && $el.showPicker()"
-                           class="cursor-pointer bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm rounded-xl px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                           class="cursor-pointer font-mono text-sm bg-graphite-50 dark:bg-graphite-950/40 border border-graphite-200 dark:border-graphite-700 rounded-sm px-3 py-2 text-graphite-800 dark:text-graphite-100 focus:outline-none focus:ring-1 focus:ring-signal-500">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">End Month</label>
+                    <label class="block font-mono text-[11px] uppercase tracking-wider text-graphite-400 dark:text-graphite-500 mb-1">End Month</label>
                     <input type="month" x-model="tempEnd" @click="$el.showPicker && $el.showPicker()"
-                           class="cursor-pointer bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm rounded-xl px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                           class="cursor-pointer font-mono text-sm bg-graphite-50 dark:bg-graphite-950/40 border border-graphite-200 dark:border-graphite-700 rounded-sm px-3 py-2 text-graphite-800 dark:text-graphite-100 focus:outline-none focus:ring-1 focus:ring-signal-500">
                 </div>
 
-                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2 rounded-xl transition-colors text-sm shadow-sm">
+                <button type="submit" class="bg-signal-600 hover:bg-signal-700 dark:bg-signal-500 dark:hover:bg-signal-400 text-paper-50 dark:text-graphite-950 font-mono font-semibold uppercase tracking-wider px-5 py-2 rounded-sm transition-colors text-xs">
                     Apply Filters
                 </button>
 
-                <button type="button" @click="resetFilter()" class="text-xs text-slate-500 dark:text-slate-400 hover:underline py-2">
+                <button type="button" @click="resetFilter()" class="font-mono text-[11px] uppercase tracking-wider text-graphite-500 dark:text-graphite-400 hover:text-signal-600 dark:hover:text-signal-400 hover:underline py-2">
                     Reset Date
                 </button>
             </div>
@@ -63,20 +66,28 @@
     </div>
 
     <!-- Charts Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <!-- Active Customers Chart -->
-        <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
-            <h2 class="text-lg font-bold text-slate-800 dark:text-slate-100 mb-3">Active Customers Over Time</h2>
-            <div class="rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-700/50 p-3">
-                <canvas id="activeCustomersChart" class="max-h-[380px] w-full"></canvas>
+        <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 rounded-sm transition-colors">
+            <div class="px-5 py-3 border-b border-graphite-200 dark:border-graphite-800">
+                <h3 class="font-mono text-[11px] uppercase tracking-[0.14em] text-graphite-400 dark:text-graphite-500">Active Customers Over Time</h3>
+            </div>
+            <div class="p-4">
+                <div class="rounded-sm bg-graphite-50 dark:bg-graphite-950/40 border border-graphite-200 dark:border-graphite-800 p-3">
+                    <canvas id="activeCustomersChart" class="max-h-[380px] w-full"></canvas>
+                </div>
             </div>
         </div>
 
         <!-- Monthly Churn Chart -->
-        <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
-            <h2 class="text-lg font-bold text-slate-800 dark:text-slate-100 mb-3">Monthly Churn Percentage</h2>
-            <div class="rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-700/50 p-3">
-                <canvas id="churnPercentageChart" class="max-h-[380px] w-full"></canvas>
+        <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 rounded-sm transition-colors">
+            <div class="px-5 py-3 border-b border-graphite-200 dark:border-graphite-800">
+                <h3 class="font-mono text-[11px] uppercase tracking-[0.14em] text-graphite-400 dark:text-graphite-500">Monthly Churn Percentage</h3>
+            </div>
+            <div class="p-4">
+                <div class="rounded-sm bg-graphite-50 dark:bg-graphite-950/40 border border-graphite-200 dark:border-graphite-800 p-3">
+                    <canvas id="churnPercentageChart" class="max-h-[380px] w-full"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -153,7 +164,7 @@ function activityFilter(rawActive, rawChurn) {
             const regions = [...new Set(activeData.map(d => d.Region))];
             const months = [...new Set(activeData.map(d => d.Month))].sort();
             
-            const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#f97316'];
+            const colors = ['#D98E2B', '#4A6C8C', '#3FA76B', '#C0453A', '#8A6D3B', '#6B8E9E', '#9B8557'];
 
             // Build Dataset: Active Customers (One line per selected region)
             const activeDatasets = this.selectedRegions.map((region, idx) => ({

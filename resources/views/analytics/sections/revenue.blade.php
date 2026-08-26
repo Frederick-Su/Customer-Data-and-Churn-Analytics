@@ -65,79 +65,81 @@
     @endphp
 
     @if($imgRevenueAll || $imgRevenueMonthly || $imgRevenueWeekly)
-    <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+    <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 rounded-sm transition-colors">
+        <div class="px-5 py-3 border-b border-graphite-200 dark:border-graphite-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-                <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">Latest Renewals</h2>
-                <p class="text-slate-500 dark:text-slate-400 text-xs mt-0.5">Calculated from (Price - SellerFee) using latest customer renewals grouped by time.</p>
+                <h3 class="font-mono text-[11px] uppercase tracking-[0.14em] text-graphite-400 dark:text-graphite-500">Latest Renewals</h3>
+                <p class="text-graphite-400 dark:text-graphite-500 text-xs mt-1">Calculated from (Price &minus; SellerFee) using latest customer renewals grouped by time.</p>
             </div>
 
-            <div class="inline-flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 self-start sm:self-auto">
+            <div class="inline-flex p-1 bg-graphite-50 dark:bg-graphite-950/40 rounded-sm border border-graphite-200 dark:border-graphite-800 self-start sm:self-auto">
                 <button @click="timeframe = 'all'"
-                        :class="timeframe === 'all' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm font-semibold' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'"
-                        class="px-3 py-1.5 text-xs rounded-lg transition-all">
+                        :class="timeframe === 'all' ? 'bg-paper-100 dark:bg-graphite-800 text-signal-600 dark:text-signal-400 font-semibold' : 'text-graphite-500 hover:text-graphite-700 dark:hover:text-graphite-300'"
+                        class="px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider rounded-sm transition-all">
                     Yearly
                 </button>
                 <button @click="timeframe = 'monthly'"
-                        :class="timeframe === 'monthly' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm font-semibold' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'"
-                        class="px-3 py-1.5 text-xs rounded-lg transition-all">
+                        :class="timeframe === 'monthly' ? 'bg-paper-100 dark:bg-graphite-800 text-signal-600 dark:text-signal-400 font-semibold' : 'text-graphite-500 hover:text-graphite-700 dark:hover:text-graphite-300'"
+                        class="px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider rounded-sm transition-all">
                     Monthly
                 </button>
                 <button @click="timeframe = 'weekly'"
-                        :class="timeframe === 'weekly' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm font-semibold' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'"
-                        class="px-3 py-1.5 text-xs rounded-lg transition-all">
+                        :class="timeframe === 'weekly' ? 'bg-paper-100 dark:bg-graphite-800 text-signal-600 dark:text-signal-400 font-semibold' : 'text-graphite-500 hover:text-graphite-700 dark:hover:text-graphite-300'"
+                        class="px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider rounded-sm transition-all">
                     Weekly
                 </button>
             </div>
         </div>
 
-        <div class="overflow-hidden rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-700/50 p-2">
+        <div class="p-5">
+        <div class="overflow-hidden rounded-sm bg-graphite-50 dark:bg-graphite-950/40 border border-graphite-200 dark:border-graphite-800 p-2">
             @foreach($revenueCharts as $key => $chart)
                 @if($chart['image'])
                 <div x-show="timeframe === '{{ $key }}'" @if($key !== 'all') x-cloak @endif class="cursor-pointer group"
                      @click="openModal('{{ $chart['image']['url'] }}', '{{ $chart['modal'] }}')">
                     <img src="{{ $chart['image']['url'] }}" alt="{{ $chart['alt'] }}"
-                         class="w-full h-auto object-contain max-h-[500px] mx-auto rounded-lg group-hover:scale-[1.01] transition-transform duration-200">
+                         class="w-full h-auto object-contain max-h-[500px] mx-auto rounded-sm group-hover:opacity-90 transition-opacity">
                 </div>
                 @endif
             @endforeach
         </div>
 
-        <div class="mt-6 border-t border-slate-100 dark:border-slate-700/60 pt-4">
+        <div class="mt-6 border-t border-graphite-200 dark:border-graphite-800 pt-4">
             @foreach($revenueTables as $key => $table)
             <div x-show="timeframe === '{{ $key }}'" @if($key !== 'all') x-cloak @endif class="space-y-2">
-                <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-2">{{ $table['title'] }}</h3>
+                <h3 class="font-mono text-[11px] uppercase tracking-[0.14em] text-graphite-400 dark:text-graphite-500 mb-2">{{ $table['title'] }}</h3>
 
                 @if(!empty($table['rows']))
-                <div @class(['overflow-x-auto' => $key === 'all', 'max-h-[300px] overflow-y-auto' => $key !== 'all'])>
-                    <table class="w-full text-xs text-left text-slate-600 dark:text-slate-300">
-                        <thead class="bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 font-medium @if($key !== 'all') sticky top-0 @endif">
+                <div @class(['overflow-x-auto border border-graphite-200 dark:border-graphite-800 rounded-sm' => $key === 'all', 'max-h-[300px] overflow-y-auto border border-graphite-200 dark:border-graphite-800 rounded-sm' => $key !== 'all'])>
+                    <table class="w-full text-xs text-left font-mono text-graphite-600 dark:text-graphite-300">
+                        <thead class="bg-graphite-100 dark:bg-graphite-800/60 text-graphite-500 dark:text-graphite-400 uppercase tracking-wider @if($key !== 'all') sticky top-0 @endif">
                             <tr>
-                                <th class="p-2 rounded-l">{{ $table['periodHeader'] }}</th>
-                                <th class="p-2">Region</th>
-                                <th class="p-2">{{ $table['countHeader'] }}</th>
-                                <th class="p-2">Net Revenue</th>
-                                <th class="p-2">{{ $table['avgHeader'] }}</th>
+                                <th class="p-2.5">{{ $table['periodHeader'] }}</th>
+                                <th class="p-2.5">Region</th>
+                                <th class="p-2.5">{{ $table['countHeader'] }}</th>
+                                <th class="p-2.5">Net Revenue</th>
+                                <th class="p-2.5">{{ $table['avgHeader'] }}</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50">
+                        <tbody class="divide-y divide-graphite-200 dark:divide-graphite-800">
                             @foreach($table['rows'] as $row)
                             <tr>
-                                <td class="p-2 font-medium text-slate-800 dark:text-slate-100">{{ $row[$table['periodKey']] ?? '-' }}</td>
-                                <td class="p-2">{{ $row['Region'] ?? '-' }}</td>
-                                <td class="p-2">{{ $row['Active_Customers'] ?? 0 }}</td>
-                                <td class="p-2 font-medium text-emerald-600 dark:text-emerald-400">{{ number_format($row['Total_Revenue'] ?? 0, 2) }}</td>
-                                <td class="p-2">{{ number_format($row['Average_Revenue'] ?? 0, 2) }}</td>
+                                <td class="p-2.5 font-medium text-graphite-800 dark:text-graphite-100">{{ $row[$table['periodKey']] ?? '-' }}</td>
+                                <td class="p-2.5">{{ $row['Region'] ?? '-' }}</td>
+                                <td class="p-2.5">{{ $row['Active_Customers'] ?? 0 }}</td>
+                                <td class="p-2.5 font-medium text-good-600 dark:text-good-400">{{ number_format($row['Total_Revenue'] ?? 0, 2) }}</td>
+                                <td class="p-2.5">{{ number_format($row['Average_Revenue'] ?? 0, 2) }}</td>
                             </tr>
                             @endforeach
                         </tbody>
                     </table>
                 </div>
                 @else
-                <p class="text-xs text-slate-400 italic">{{ $table['emptyText'] }}</p>
+                <p class="text-xs text-graphite-400 italic">{{ $table['emptyText'] }}</p>
                 @endif
             </div>
             @endforeach
+        </div>
         </div>
     </div>
     @endif

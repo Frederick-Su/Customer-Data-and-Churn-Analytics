@@ -15,38 +15,40 @@
         $watch('darkMode', () => updateTheme());
         if (activeTab === 'ltv') ensureChart();
      "
-     class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm transition-colors">
+     class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 rounded-sm transition-colors">
 
-    <div class="flex items-start justify-between mb-4 flex-wrap gap-2">
+    <div class="px-5 py-3 border-b border-graphite-200 dark:border-graphite-800 flex items-start justify-between flex-wrap gap-2">
         <div>
-            <h3 class="text-lg font-bold text-slate-900 dark:text-slate-100">Customer LTV by Cohort</h3>
-            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            <h3 class="font-mono text-[11px] uppercase tracking-[0.14em] text-graphite-400 dark:text-graphite-500">Customer LTV by Cohort</h3>
+            <p class="text-xs text-graphite-500 dark:text-graphite-400 mt-1">
                 Average cumulative revenue per customer, grouped by signup month, plotted against months since signup.
                 Cohorts smaller than 10 customers are excluded.
             </p>
         </div>
-        <p class="text-xs text-slate-400 dark:text-slate-500"
+        <p class="font-mono text-[11px] text-graphite-400 dark:text-graphite-500"
            x-show="cohorts.length > 0"
            x-text="activeCount(cohorts) + ' of ' + cohorts.length + ' cohorts shown'"></p>
     </div>
 
+    <div class="p-5">
+
     <template x-if="records.length === 0">
-        <p class="text-sm text-slate-500 dark:text-slate-400 py-16 text-center">
+        <p class="text-sm text-graphite-500 dark:text-graphite-400 py-16 text-center font-mono">
             No cohort LTV data available for this dataset.
         </p>
     </template>
 
     <div x-show="cohorts.length > 0" class="flex items-center flex-wrap gap-2 mb-4">
         <button @click="setAll(true)"
-                class="text-xs font-medium px-2.5 py-1 rounded-full border border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                class="font-mono text-[11px] uppercase font-medium px-2.5 py-1 rounded-sm border border-graphite-300 dark:border-graphite-600 text-graphite-500 dark:text-graphite-400 hover:border-signal-600 dark:hover:border-signal-500 transition-colors">
             All
         </button>
         <button @click="setAll(false)"
-                class="text-xs font-medium px-2.5 py-1 rounded-full border border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                class="font-mono text-[11px] uppercase font-medium px-2.5 py-1 rounded-sm border border-graphite-300 dark:border-graphite-600 text-graphite-500 dark:text-graphite-400 hover:border-signal-600 dark:hover:border-signal-500 transition-colors">
             None
         </button>
 
-        <span class="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-1"></span>
+        <span class="w-px h-4 bg-graphite-200 dark:bg-graphite-700 mx-1"></span>
 
         <template x-for="cohort in cohorts" :key="cohort">
             <button @click="toggleCohort(cohort)"
@@ -55,8 +57,8 @@
                         : ''"
                     :class="activeCohorts[cohort]
                         ? 'font-semibold'
-                        : 'text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700 opacity-60 hover:opacity-100'"
-                    class="text-xs px-2.5 py-1 rounded-full border transition-all flex items-center gap-1.5">
+                        : 'text-graphite-400 dark:text-graphite-500 border-graphite-200 dark:border-graphite-700 opacity-60 hover:opacity-100'"
+                    class="font-mono text-[11px] px-2.5 py-1 rounded-sm border transition-all flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full shrink-0" :style="`background:${colors[cohort]}`"></span>
                 <span x-text="cohort"></span>
             </button>
@@ -65,6 +67,7 @@
 
     <div x-show="records.length > 0" class="relative" style="height: 480px;">
         <canvas x-ref="canvas"></canvas>
+    </div>
     </div>
 </div>
 
@@ -135,8 +138,9 @@
                 });
 
                 const isDark = document.body.classList.contains('dark');
-                const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-                const textColor = isDark ? '#cbd5e1' : '#475569';
+                const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(10,12,16,0.08)';
+                const textColor = isDark ? '#A7ACB4' : '#565D66';
+                const fontFamily = "'IBM Plex Mono', monospace";
 
                 chartInstance = new Chart(canvas.getContext('2d'), {
                     type: 'line',
@@ -151,6 +155,8 @@
                             // doing the same job.
                             legend: { display: false },
                             tooltip: {
+                                titleFont: { family: fontFamily },
+                                bodyFont: { family: fontFamily },
                                 callbacks: {
                                     label: (ctx) => `${ctx.dataset.label}: ${Math.round(ctx.parsed.y).toLocaleString()} at month ${ctx.parsed.x}`
                                 }
@@ -159,14 +165,15 @@
                         scales: {
                             x: {
                                 type: 'linear',
-                                title: { display: true, text: 'Months Since Signup', color: textColor },
-                                ticks: { stepSize: 1, precision: 0, color: textColor },
+                                title: { display: true, text: 'Months Since Signup', color: textColor, font: { family: fontFamily } },
+                                ticks: { stepSize: 1, precision: 0, color: textColor, font: { family: fontFamily } },
                                 grid: { color: gridColor }
                             },
                             y: {
-                                title: { display: true, text: 'Avg. Cumulative LTV', color: textColor },
+                                title: { display: true, text: 'Avg. Cumulative LTV', color: textColor, font: { family: fontFamily } },
                                 ticks: {
                                     color: textColor,
+                                    font: { family: fontFamily },
                                     callback: (v) => v.toLocaleString()
                                 },
                                 grid: { color: gridColor }
@@ -215,8 +222,8 @@
                 if (!chartInstance) return;
 
                 const isDark = document.body.classList.contains('dark');
-                const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-                const textColor = isDark ? '#cbd5e1' : '#475569';
+                const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(10,12,16,0.08)';
+                const textColor = isDark ? '#A7ACB4' : '#565D66';
 
                 ['x', 'y'].forEach(axis => {
                     const scale = chartInstance.options.scales[axis];
@@ -233,7 +240,8 @@
             // the same year share that hue but get a spread of lightness
             // values, since making every month in a year pixel-identical
             // would make individual lines impossible to tell apart on the
-            // chart itself.
+            // chart itself. Saturation is kept moderate (50%) rather than
+            // vivid so the palette reads as instrumentation, not confetti.
             generateColors(cohorts) {
                 const years = [...new Set(cohorts.map(c => c.slice(0, 4)))].sort();
 
@@ -256,8 +264,8 @@
                     months.forEach((cohort, idx) => {
                         const lightness = months.length > 1
                             ? 35 + Math.round((30 / (months.length - 1)) * idx)
-                            : 50;
-                        colors[cohort] = `hsl(${hue}, 65%, ${lightness}%)`;
+                            : 48;
+                        colors[cohort] = `hsl(${hue}, 50%, ${lightness}%)`;
                     });
                 });
 
