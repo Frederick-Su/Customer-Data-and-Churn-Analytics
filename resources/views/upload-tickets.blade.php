@@ -267,18 +267,23 @@
     }
 
     // 2. AREA FILTERED CHART (Checkboxes)
-    function areaFilteredChart(rawData, xKey, yKey, type = 'bar', horizontal = false) {
+    function areaFilteredChart(rawData, type = 'bar', horizontal = false) {
         let chartInstance = null;
         return {
             rawData: rawData || [],
             availableAreas: [],
             selectedAreas: [],
+            tempStart: '',
+            tempEnd: '',
 
             init() {
                 if (this.rawData.length === 0) return;
-                this.availableAreas = [...new Set(this.rawData.map(d => d[xKey]))].sort();
+                
+                // Populate checkboxes with unique area names
+                this.availableAreas = [...new Set(this.rawData.map(d => d.Area))].sort();
                 this.selectedAreas = [...this.availableAreas];
 
+                this.resetDateFilter();
                 this.$nextTick(() => this.buildChart());
                 this.$watch('darkMode', () => applyThemeToInstance(chartInstance, horizontal));
                 this.$watch('selectedAreas', () => this.updateChart());
@@ -292,23 +297,56 @@
             selectAll() { this.selectedAreas = [...this.availableAreas]; },
             clearAll() { this.selectedAreas = []; },
 
-            getFilteredData() {
-                return this.rawData.filter(d => this.selectedAreas.includes(d[xKey]));
+            applyDateFilter() {
+                this.updateChart();
+            },
+
+            resetDateFilter() {
+                const dates = this.rawData.map(d => d.Date).filter(Boolean).sort();
+                if (dates.length > 0) {
+                    this.tempStart = dates[0];
+                    this.tempEnd = dates[dates.length - 1];
+                }
+                this.updateChart();
+            },
+
+            getAggregatedData() {
+                // Filter by selected areas AND date range
+                const filtered = this.rawData.filter(d => {
+                    if (!d.Date) return false;
+                    const areaMatch = this.selectedAreas.includes(d.Area);
+                    const startMatch = !this.tempStart || d.Date >= this.tempStart;
+                    const endMatch = !this.tempEnd || d.Date <= this.tempEnd;
+                    return areaMatch && startMatch && endMatch;
+                });
+
+                // Group and aggregate counts per Area
+                const counts = {};
+                filtered.forEach(d => {
+                    counts[d.Area] = (counts[d.Area] || 0) + 1;
+                });
+
+                // Sort descending by count
+                const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+                return {
+                    labels: sorted.map(item => item[0]),
+                    values: sorted.map(item => item[1])
+                };
             },
 
             buildChart() {
                 const canvas = this.$refs.canvas;
                 if (!canvas) return;
 
-                const filtered = this.getFilteredData();
+                const agg = this.getAggregatedData();
                 const theme = getChartTheme();
 
                 chartInstance = new Chart(canvas.getContext('2d'), {
                     type: type,
                     data: {
-                        labels: filtered.map(d => d[xKey]),
+                        labels: agg.labels,
                         datasets: [{
-                            data: filtered.map(d => d[yKey]),
+                            data: agg.values,
                             backgroundColor: '#D98E2B', borderColor: '#D98E2B', borderWidth: 1, tension: 0.3
                         }]
                     },
@@ -326,9 +364,9 @@
 
             updateChart() {
                 if (!chartInstance) return;
-                const filtered = this.getFilteredData();
-                chartInstance.data.labels = filtered.map(d => d[xKey]);
-                chartInstance.data.datasets[0].data = filtered.map(d => d[yKey]);
+                const agg = this.getAggregatedData();
+                chartInstance.data.labels = agg.labels;
+                chartInstance.data.datasets[0].data = agg.values;
                 chartInstance.update();
             }
         };
@@ -401,6 +439,137 @@
                 const filtered = this.getFilteredData();
                 chartInstance.data.labels = filtered.map(d => d[xKey]);
                 chartInstance.data.datasets[0].data = filtered.map(d => d[yKey]);
+                chartInstance.update();
+            }
+        };
+    }
+
+    function complaintPieChart(rawData) {
+        let chartInstance = null;
+        return {
+            rawData: rawData || [],
+            tempStart: '',
+            tempEnd: '',
+            colors: ['#A6CEE3', '#1F78B4', '#B2DF8A', '#33A02C', '#FB9A99', '#E31A1C', '#FDBF6F', '#FF7F00', '#CAB2D6', '#6A3D9A'],
+
+            init() {
+                if (!this.rawData.length) return;
+                this.resetFilter();
+                this.$nextTick(() => this.buildChart());
+                this.$watch('darkMode', () => this.updateChart());
+            },
+
+            applyFilter() {
+                this.updateChart();
+            },
+
+            resetFilter() {
+                // Find minimum and maximum "YYYY-MM" values from rawData
+                const dates = this.rawData
+                    .map(d => d.Date)
+                    .filter(Boolean)
+                    .sort();
+
+                if (dates.length > 0) {
+                    this.tempStart = dates[0];
+                    this.tempEnd = dates[dates.length - 1];
+                }
+                this.updateChart();
+            },
+
+            getFilteredData() {
+                return this.rawData.filter(d => {
+                    if (!d.Date) return false;
+                    // Standard YYYY-MM string comparison works lexicographically
+                    const afterStart = !this.tempStart || d.Date >= this.tempStart;
+                    const beforeEnd = !this.tempEnd || d.Date <= this.tempEnd;
+                    return afterStart && beforeEnd;
+                });
+            },
+
+            processSlices(data) {
+                const counts = {};
+                data.forEach(d => { 
+                    counts[d['Type Complaint']] = (counts[d['Type Complaint']] || 0) + 1; 
+                });
+
+                const total = Object.values(counts).reduce((a, b) => a + b, 0);
+                if (!total) return { labels: [], values: [] };
+
+                const labels = [];
+                const values = [];
+                let otherCount = 0;
+
+                // Group slices < 1% into "Other"
+                for (const [key, count] of Object.entries(counts)) {
+                    if (count / total < 0.01) {
+                        otherCount += count;
+                    } else {
+                        labels.push(key);
+                        values.push(count);
+                    }
+                }
+
+                if (otherCount > 0) {
+                    labels.push('Other');
+                    values.push(otherCount);
+                }
+
+                return { labels, values };
+            },
+
+            buildChart() {
+                const canvas = this.$refs.canvas;
+                if (!canvas) return;
+
+                const sliceData = this.processSlices(this.getFilteredData());
+                const isDark = document.body.classList.contains('dark');
+
+                chartInstance = new Chart(canvas.getContext('2d'), {
+                    type: 'pie',
+                    data: {
+                        labels: sliceData.labels,
+                        datasets: [{
+                            data: sliceData.values,
+                            backgroundColor: this.colors,
+                            borderColor: isDark ? '#14171B' : '#FFFFFF',
+                            borderWidth: 1.5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: {
+                                    color: isDark ? '#A7ACB4' : '#565D66',
+                                    font: { family: "'IBM Plex Mono', monospace", size: 11 }
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => {
+                                        const sum = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                        const pct = ((ctx.raw / sum) * 100).toFixed(1);
+                                        return ` ${ctx.label}: ${ctx.raw} (${pct}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+
+            updateChart() {
+                if (!chartInstance) return;
+                const sliceData = this.processSlices(this.getFilteredData());
+                const isDark = document.body.classList.contains('dark');
+
+                chartInstance.data.labels = sliceData.labels;
+                chartInstance.data.datasets[0].data = sliceData.values;
+                chartInstance.data.datasets[0].borderColor = isDark ? '#14171B' : '#FFFFFF';
+                chartInstance.options.plugins.legend.labels.color = isDark ? '#A7ACB4' : '#565D66';
                 chartInstance.update();
             }
         };

@@ -74,25 +74,30 @@ with open(os.path.join(output_dir, "0_dashboard_cards.json"), "w") as f:
 # 1. TICKETS BY AREA
 # ============================================================
 df_area = df.dropna(subset=['Area'])
-ticket_counts = df_area.groupby('Area')['Ticket ID'].count().reset_index(name='Ticket_Count')
-ticket_counts = ticket_counts.sort_values(by='Ticket_Count', ascending=False)
 
-# plt.figure(figsize=(10, 6))
-# sns.barplot(data=ticket_counts, x='Ticket_Count', y='Area', palette='viridis')
-# plt.title('Number of Tickets by Area', fontsize=14, fontweight='bold')
-# plt.xlabel('Ticket Count', fontsize=12)
-# plt.ylabel('Area', fontsize=12)
-# plt.tight_layout()
-# plt.savefig(os.path.join(output_dir, "1_tickets_by_area.png"))
-# plt.close()
+area_export = pd.DataFrame({
+    'Area': df_area['Area'].astype(str),
+    'Date': df_area['Creation Time'].dt.strftime('%Y-%m')
+})
+# ticket_counts = df_area.groupby('Area')['Ticket ID'].count().reset_index(name='Ticket_Count')
+# ticket_counts = ticket_counts.sort_values(by='Ticket_Count', ascending=False)
 
-df_area = df.dropna(subset=['Area'])
-ticket_counts = df_area.groupby('Area')['Ticket ID'].count().reset_index(name='Ticket_Count')
-ticket_counts = ticket_counts.sort_values(by='Ticket_Count', ascending=False)
+# # plt.figure(figsize=(10, 6))
+# # sns.barplot(data=ticket_counts, x='Ticket_Count', y='Area', palette='viridis')
+# # plt.title('Number of Tickets by Area', fontsize=14, fontweight='bold')
+# # plt.xlabel('Ticket Count', fontsize=12)
+# # plt.ylabel('Area', fontsize=12)
+# # plt.tight_layout()
+# # plt.savefig(os.path.join(output_dir, "1_tickets_by_area.png"))
+# # plt.close()
+
+# df_area = df.dropna(subset=['Area'])
+# ticket_counts = df_area.groupby('Area')['Ticket ID'].count().reset_index(name='Ticket_Count')
+# ticket_counts = ticket_counts.sort_values(by='Ticket_Count', ascending=False)
 
 # Export JSON for Chart.js
 with open(os.path.join(output_dir, "1_tickets_by_area.json"), "w") as f:
-    json.dump(ticket_counts.to_dict(orient='records'), f, indent=4)
+    json.dump(area_export.to_dict(orient='records'), f, indent=4)
 
 # ============================================================
 # 2. TICKETS BY COMPLAINT TYPE
@@ -209,33 +214,14 @@ if 'Duration_Days' in df.columns:
 # ============================================================
 # 1. Clean the data and get exact counts for every complaint type
 df_clean_pie = df.dropna(subset=['Type Complaint'])
-pie_counts = df_clean_pie['Type Complaint'].value_counts()
 
-# Group anything less than 2% of the total into "Other"
-threshold = 0.01
-total_tickets = pie_counts.sum()
-large_slices = pie_counts[pie_counts / total_tickets >= threshold]
-small_slices = pie_counts[pie_counts / total_tickets < threshold]
+pie_export = pd.DataFrame({
+    'Type Complaint': df_clean_pie['Type Complaint'].astype(str),
+    'Date': df_clean_pie['Creation Time'].dt.strftime('%Y-%m')
+})
 
-if not small_slices.empty:
-    large_slices['Other'] = small_slices.sum()
-
-plt.figure(figsize=(10, 8))
-plt.pie(
-    large_slices,
-    labels=large_slices.index,
-    autopct='%1.1f%%',
-    startangle=140,
-    colors=plt.cm.Paired.colors,
-    wedgeprops={'edgecolor': 'white', 'linewidth': 1.5}
-)
-
-plt.title('Proportion of Tickets by Type Complaint', fontsize=14, fontweight='bold')
-plt.tight_layout()
-
-# Save the plot
-plt.savefig(os.path.join(output_dir, "7_complaint_proportion.png"))
-plt.close()
+with open(os.path.join(output_dir, "7_complaint_proportion.json"), "w") as f:
+    json.dump(pie_export.to_dict(orient='records'), f, indent=4)
 
 # ============================================================
 # 8. MONTHLY TICKET VOLUME TREND
