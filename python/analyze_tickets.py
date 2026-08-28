@@ -77,15 +77,20 @@ df_area = df.dropna(subset=['Area'])
 ticket_counts = df_area.groupby('Area')['Ticket ID'].count().reset_index(name='Ticket_Count')
 ticket_counts = ticket_counts.sort_values(by='Ticket_Count', ascending=False)
 
-plt.figure(figsize=(10, 6))
-sns.barplot(data=ticket_counts, x='Ticket_Count', y='Area', palette='viridis')
-plt.title('Number of Tickets by Area', fontsize=14, fontweight='bold')
-plt.xlabel('Ticket Count', fontsize=12)
-plt.ylabel('Area', fontsize=12)
-plt.tight_layout()
-plt.savefig(os.path.join(output_dir, "1_tickets_by_area.png"))
-plt.close()
+# plt.figure(figsize=(10, 6))
+# sns.barplot(data=ticket_counts, x='Ticket_Count', y='Area', palette='viridis')
+# plt.title('Number of Tickets by Area', fontsize=14, fontweight='bold')
+# plt.xlabel('Ticket Count', fontsize=12)
+# plt.ylabel('Area', fontsize=12)
+# plt.tight_layout()
+# plt.savefig(os.path.join(output_dir, "1_tickets_by_area.png"))
+# plt.close()
 
+df_area = df.dropna(subset=['Area'])
+ticket_counts = df_area.groupby('Area')['Ticket ID'].count().reset_index(name='Ticket_Count')
+ticket_counts = ticket_counts.sort_values(by='Ticket_Count', ascending=False)
+
+# Export JSON for Chart.js
 with open(os.path.join(output_dir, "1_tickets_by_area.json"), "w") as f:
     json.dump(ticket_counts.to_dict(orient='records'), f, indent=4)
 

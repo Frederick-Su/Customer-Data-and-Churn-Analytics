@@ -35,6 +35,7 @@
             },
         }
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         [x-cloak] { display: none !important; }
@@ -93,11 +94,9 @@
         </div>
 
         <div class="flex items-center gap-3">
-            <form action="/analyze-tickets" method="POST" enctype="multipart/form-data" @submit="isLoading = true"
-                  class="flex-1 md:flex-none flex items-center gap-3 bg-paper-100 dark:bg-graphite-900 p-2 rounded-sm border border-graphite-200 dark:border-graphite-700 transition-colors">
+            <form action="/analyze-tickets" method="POST" enctype="multipart/form-data" @submit="isLoading = true" class="flex-1 md:flex-none flex items-center gap-3 bg-paper-100 dark:bg-graphite-900 p-2 rounded-sm border border-graphite-200 dark:border-graphite-700 transition-colors">
                 @csrf
-                <input type="file" name="excel" accept=".xlsx,.xls,.csv" required
-                       class="block w-full text-xs font-mono text-graphite-500 dark:text-graphite-400 file:mr-3 file:py-2 file:px-3 file:rounded-sm file:border-0 file:text-xs file:font-mono file:font-medium file:uppercase file:tracking-wider file:bg-graphite-100 file:text-graphite-700 dark:file:bg-graphite-800 dark:file:text-graphite-300 hover:file:bg-graphite-200 dark:hover:file:bg-graphite-700 cursor-pointer">
+                <input type="file" name="excel" accept=".xlsx,.xls,.csv" required class="block w-full text-xs font-mono text-graphite-500 dark:text-graphite-400 file:mr-3 file:py-2 file:px-3 file:rounded-sm file:border-0 file:text-xs file:font-mono file:font-medium file:uppercase file:tracking-wider file:bg-graphite-100 file:text-graphite-700 dark:file:bg-graphite-800 dark:file:text-graphite-300 hover:file:bg-graphite-200 dark:hover:file:bg-graphite-700 cursor-pointer">
                 <button type="submit" :disabled="isLoading" class="bg-signal-600 hover:bg-signal-700 dark:bg-signal-500 dark:hover:bg-signal-400 disabled:bg-graphite-400 disabled:cursor-not-allowed text-paper-50 dark:text-graphite-950 font-mono font-semibold uppercase tracking-wider px-5 py-2 rounded-sm transition-colors text-xs whitespace-nowrap flex items-center justify-center gap-2">
                     <span x-text="isLoading ? 'Analyzing…' : 'Analyze Data'"></span>
                 </button>
@@ -114,212 +113,298 @@
         </div>
     </div>
 
-    @if(isset($images) && count($images) > 0)
+    @if(!empty($summaries) || !empty($images))
+        @php
+            $dashboard = $summaries['0_dashboard_cards'] ?? [];
+            
+            $imgDurationDist = !empty($images) ? $images->firstWhere('name', '6_duration_distribution') : null;
+            $imgComplaintProp = !empty($images) ? $images->firstWhere('name', '7_complaint_proportion') : null;
+            $imgHeatmap = !empty($images) ? $images->firstWhere('name', '9_complaint_heatmap') : null;
+        @endphp
 
-    <!-- Map the new Python outputs to PHP variables -->
-    @php
-        $imgTicketsByArea = $images->firstWhere('name', '1_tickets_by_area');
-        $imgTicketsByComplaint = $images->firstWhere('name', '2_tickets_by_complaint');
-        $imgTopVnIds = $images->firstWhere('name', '3_top_vn_ids');
-        $imgDurationArea = $images->firstWhere('name', '4_median_duration_area');
-        $imgDurationComplaint = $images->firstWhere('name', '5_duration_by_complaint');
-        $imgDurationDist = $images->firstWhere('name', '6_duration_distribution');
-        $imgComplaintProp = $images->firstWhere('name', '7_complaint_proportion');
-        $imgMonthlyVolume = $images->firstWhere('name', '8_monthly_volume');
-        $imgHeatmap = $images->firstWhere('name', '9_complaint_heatmap');
-
-        $dashboard = $summaries['0_dashboard_cards'] ?? [];
-    @endphp
-
-    <!-- Dashboard Cards -->
-    @if(!empty($dashboard))
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-        <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 border-l-2 border-l-graphite-400 dark:border-l-graphite-600 rounded-sm p-4">
-            <p class="op-eyebrow text-graphite-400 dark:text-graphite-500">Total Rows Evaluated</p>
-            <h2 class="mt-2 font-mono text-2xl font-semibold text-graphite-900 dark:text-graphite-100">{{ number_format($dashboard['Total_Rows']) }}</h2>
-        </div>
-        <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 border-l-2 border-l-signal-600 dark:border-l-signal-500 rounded-sm p-4">
-            <p class="op-eyebrow text-graphite-400 dark:text-graphite-500">Unique Tickets</p>
-            <h2 class="mt-2 font-mono text-2xl font-semibold text-signal-600 dark:text-signal-400">{{ number_format($dashboard['Unique_Tickets']) }}</h2>
-        </div>
-        <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 border-l-2 border-l-bad-600 dark:border-l-bad-500 rounded-sm p-4">
-            <p class="op-eyebrow text-graphite-400 dark:text-graphite-500">Duplicate Tickets</p>
-            <h2 class="mt-2 font-mono text-2xl font-semibold text-bad-600 dark:text-bad-400">{{ number_format($dashboard['Duplicate_Tickets']) }}</h2>
-        </div>
-        <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 border-l-2 border-l-good-600 dark:border-l-good-500 rounded-sm p-4">
-            <p class="op-eyebrow text-graphite-400 dark:text-graphite-500">Unique VN IDs (Customers)</p>
-            <h2 class="mt-2 font-mono text-2xl font-semibold text-good-600 dark:text-good-400">{{ number_format($dashboard['Unique_VN_IDs']) }}</h2>
-        </div>
-    </div>
-    @endif
-
-    <!-- Tabs Navigation -->
-    <div class="space-y-6">
-        <div class="flex flex-wrap gap-1 border-b border-graphite-200 dark:border-graphite-800">
-            <button @click="activeTab = 'overview'" :class="activeTab === 'overview' ? 'border-signal-600 dark:border-signal-500 text-signal-600 dark:text-signal-400 font-semibold' : 'border-transparent text-graphite-500 dark:text-graphite-400 hover:text-graphite-800 dark:hover:text-graphite-200'" class="px-4 py-3 border-b-2 font-mono text-xs uppercase tracking-wider transition-all">
-                Overview &amp; Volume
-            </button>
-            <button @click="activeTab = 'duration'" :class="activeTab === 'duration' ? 'border-signal-600 dark:border-signal-500 text-signal-600 dark:text-signal-400 font-semibold' : 'border-transparent text-graphite-500 dark:text-graphite-400 hover:text-graphite-800 dark:hover:text-graphite-200'" class="px-4 py-3 border-b-2 font-mono text-xs uppercase tracking-wider transition-all">
-                Resolution &amp; Duration
-            </button>
-            <button @click="activeTab = 'hotspots'" :class="activeTab === 'hotspots' ? 'border-signal-600 dark:border-signal-500 text-signal-600 dark:text-signal-400 font-semibold' : 'border-transparent text-graphite-500 dark:text-graphite-400 hover:text-graphite-800 dark:hover:text-graphite-200'" class="px-4 py-3 border-b-2 font-mono text-xs uppercase tracking-wider transition-all">
-                Hotspots &amp; Deep Dive
-            </button>
-        </div>
-
-        <!-- TAB 1: Overview & Volume -->
-        <div x-show="activeTab === 'overview'" x-cloak class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            @if($imgMonthlyVolume)
-            <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 rounded-sm lg:col-span-2">
-                <div class="px-5 py-3 border-b border-graphite-200 dark:border-graphite-800">
-                    <h3 class="op-eyebrow text-graphite-500 dark:text-graphite-400">Monthly Ticket Volume Trend</h3>
-                </div>
-                <div class="p-4">
-                    <img src="{{ $imgMonthlyVolume['url'] }}" class="w-full rounded-sm cursor-pointer hover:opacity-90" @click="openModal('{{ $imgMonthlyVolume['url'] }}', 'Monthly Volume')">
-                </div>
+        <!-- Dashboard Cards -->
+        @if(!empty($dashboard))
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+            <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 border-l-2 border-l-graphite-400 dark:border-l-graphite-600 rounded-sm p-4">
+                <p class="op-eyebrow text-graphite-400 dark:text-graphite-500">Total Rows Evaluated</p>
+                <h2 class="mt-2 font-mono text-2xl font-semibold text-graphite-900 dark:text-graphite-100">{{ number_format($dashboard['Total_Rows']) }}</h2>
             </div>
-            @endif
-
-            @if($imgTicketsByArea)
-            <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 rounded-sm">
-                <div class="px-5 py-3 border-b border-graphite-200 dark:border-graphite-800">
-                    <h3 class="op-eyebrow text-graphite-500 dark:text-graphite-400">Tickets by Area</h3>
-                </div>
-                <div class="p-4">
-                    <img src="{{ $imgTicketsByArea['url'] }}" class="w-full rounded-sm cursor-pointer hover:opacity-90" @click="openModal('{{ $imgTicketsByArea['url'] }}', 'Tickets by Area')">
-                </div>
+            <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 border-l-2 border-l-signal-600 dark:border-l-signal-500 rounded-sm p-4">
+                <p class="op-eyebrow text-graphite-400 dark:text-graphite-500">Unique Tickets</p>
+                <h2 class="mt-2 font-mono text-2xl font-semibold text-signal-600 dark:text-signal-400">{{ number_format($dashboard['Unique_Tickets']) }}</h2>
             </div>
-            @endif
-
-            @if($imgTicketsByComplaint)
-            <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 rounded-sm">
-                <div class="px-5 py-3 border-b border-graphite-200 dark:border-graphite-800">
-                    <h3 class="op-eyebrow text-graphite-500 dark:text-graphite-400">Tickets by Complaint Type</h3>
-                </div>
-                <div class="p-4">
-                    <img src="{{ $imgTicketsByComplaint['url'] }}" class="w-full rounded-sm cursor-pointer hover:opacity-90" @click="openModal('{{ $imgTicketsByComplaint['url'] }}', 'Tickets by Complaint')">
-                </div>
+            <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 border-l-2 border-l-bad-600 dark:border-l-bad-500 rounded-sm p-4">
+                <p class="op-eyebrow text-graphite-400 dark:text-graphite-500">Duplicate Tickets</p>
+                <h2 class="mt-2 font-mono text-2xl font-semibold text-bad-600 dark:text-bad-400">{{ number_format($dashboard['Duplicate_Tickets']) }}</h2>
             </div>
-            @endif
-
-            @if($imgComplaintProp)
-            <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 rounded-sm lg:col-span-2 flex flex-col items-center">
-                <div class="px-5 py-3 border-b border-graphite-200 dark:border-graphite-800 w-full">
-                    <h3 class="op-eyebrow text-graphite-500 dark:text-graphite-400">Proportion of Tickets by Complaint</h3>
-                </div>
-                <div class="p-4">
-                    <img src="{{ $imgComplaintProp['url'] }}" class="max-w-xl w-full rounded-sm cursor-pointer hover:opacity-90" @click="openModal('{{ $imgComplaintProp['url'] }}', 'Complaint Proportion')">
-                </div>
+            <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 border-l-2 border-l-good-600 dark:border-l-good-500 rounded-sm p-4">
+                <p class="op-eyebrow text-graphite-400 dark:text-graphite-500">Unique VN IDs</p>
+                <h2 class="mt-2 font-mono text-2xl font-semibold text-good-600 dark:text-good-400">{{ number_format($dashboard['Unique_VN_IDs']) }}</h2>
             </div>
-            @endif
         </div>
+        @endif
 
-        <!-- TAB 2: Resolution & Duration -->
-        <div x-show="activeTab === 'duration'" x-cloak class="grid grid-cols-1 gap-5">
-            @if($imgDurationDist)
-            <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 rounded-sm">
-                <div class="px-5 py-3 border-b border-graphite-200 dark:border-graphite-800">
-                    <h3 class="op-eyebrow text-graphite-500 dark:text-graphite-400">Ticket Duration Spread by Complaint Type</h3>
-                </div>
-                <div class="p-4">
-                    <img src="{{ $imgDurationDist['url'] }}" class="w-full rounded-sm cursor-pointer hover:opacity-90" @click="openModal('{{ $imgDurationDist['url'] }}', 'Duration Spread')">
-                </div>
+        <div class="space-y-6">
+            <div class="flex flex-wrap gap-1 border-b border-graphite-200 dark:border-graphite-800">
+                <button @click="activeTab = 'overview'" :class="activeTab === 'overview' ? 'border-signal-600 text-signal-600 font-semibold' : 'border-transparent text-graphite-500'" class="px-4 py-3 border-b-2 font-mono text-xs uppercase tracking-wider transition-all">Overview &amp; Volume</button>
+                <button @click="activeTab = 'duration'" :class="activeTab === 'duration' ? 'border-signal-600 text-signal-600 font-semibold' : 'border-transparent text-graphite-500'" class="px-4 py-3 border-b-2 font-mono text-xs uppercase tracking-wider transition-all">Resolution &amp; Duration</button>
+                <button @click="activeTab = 'hotspots'" :class="activeTab === 'hotspots' ? 'border-signal-600 text-signal-600 font-semibold' : 'border-transparent text-graphite-500'" class="px-4 py-3 border-b-2 font-mono text-xs uppercase tracking-wider transition-all">Hotspots &amp; Deep Dive</button>
             </div>
-            @endif
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                @if($imgDurationArea)
-                <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 rounded-sm">
-                    <div class="px-5 py-3 border-b border-graphite-200 dark:border-graphite-800">
-                        <h3 class="op-eyebrow text-graphite-500 dark:text-graphite-400">Median Duration by Area</h3>
+            <!-- Partials Included Here -->
+            @include('tickets.sections.overview')
+            @include('tickets.sections.duration')
+            @include('tickets.sections.hotspots')
+
+            <!-- Fallback Image Modal -->
+            <div x-show="modalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-graphite-950/85 p-4 backdrop-blur-sm" x-cloak>
+                <div @click.away="modalOpen = false" class="bg-paper-100 dark:bg-graphite-900 rounded-sm shadow-2xl max-w-5xl w-full relative border border-graphite-200 dark:border-graphite-700">
+                    <button @click="modalOpen = false" class="absolute -top-4 -right-4 bg-paper-100 dark:bg-graphite-800 text-graphite-500 hover:text-signal-600 rounded-sm p-2 shadow-lg border border-graphite-200 dark:border-graphite-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                    <div class="px-5 py-3 border-b border-graphite-200 dark:border-graphite-700">
+                        <h3 class="op-eyebrow text-graphite-500 dark:text-graphite-400" x-text="modalTitle"></h3>
                     </div>
-                    <div class="p-4">
-                        <img src="{{ $imgDurationArea['url'] }}" class="w-full rounded-sm cursor-pointer hover:opacity-90" @click="openModal('{{ $imgDurationArea['url'] }}', 'Duration by Area')">
+                    <div class="p-4 overflow-auto max-h-[80vh]">
+                        <img :src="modalImg" class="w-full rounded-sm">
                     </div>
                 </div>
-                @endif
-
-                @if($imgDurationComplaint)
-                <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 rounded-sm">
-                    <div class="px-5 py-3 border-b border-graphite-200 dark:border-graphite-800">
-                        <h3 class="op-eyebrow text-graphite-500 dark:text-graphite-400">Median Duration by Complaint Type</h3>
-                    </div>
-                    <div class="p-4">
-                        <img src="{{ $imgDurationComplaint['url'] }}" class="w-full rounded-sm cursor-pointer hover:opacity-90" @click="openModal('{{ $imgDurationComplaint['url'] }}', 'Duration by Complaint')">
-                    </div>
-                </div>
-                @endif
             </div>
         </div>
-
-        <!-- TAB 3: Hotspots & Deep Dive -->
-        <div x-show="activeTab === 'hotspots'" x-cloak class="grid grid-cols-1 gap-5">
-            @if($imgHeatmap)
-            <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 rounded-sm">
-                <div class="px-5 py-3 border-b border-graphite-200 dark:border-graphite-800">
-                    <h3 class="op-eyebrow text-graphite-500 dark:text-graphite-400">Complaint Concentration across Areas</h3>
-                </div>
-                <div class="p-4">
-                    <img src="{{ $imgHeatmap['url'] }}" class="w-full rounded-sm cursor-pointer hover:opacity-90" @click="openModal('{{ $imgHeatmap['url'] }}', 'Heatmap')">
-                </div>
-            </div>
-            @endif
-
-            @if($imgTopVnIds)
-            <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 rounded-sm">
-                <div class="px-5 py-3 border-b border-graphite-200 dark:border-graphite-800">
-                    <h3 class="op-eyebrow text-graphite-500 dark:text-graphite-400">Top 20 VN IDs (Repeat Complainers)</h3>
-                </div>
-                <div class="p-4">
-                    <img src="{{ $imgTopVnIds['url'] }}" class="w-full rounded-sm cursor-pointer hover:opacity-90" @click="openModal('{{ $imgTopVnIds['url'] }}', 'Top VN IDs')">
-                </div>
-            </div>
-            @endif
-        </div>
-
-        <!-- Image Modal -->
-        <div x-show="modalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-graphite-950/85 p-4 backdrop-blur-sm" x-cloak>
-            <div @click.away="modalOpen = false" class="bg-paper-100 dark:bg-graphite-900 rounded-sm shadow-2xl max-w-5xl w-full relative border border-graphite-200 dark:border-graphite-700">
-                <button @click="modalOpen = false" class="absolute -top-4 -right-4 bg-paper-100 dark:bg-graphite-800 text-graphite-500 hover:text-signal-600 dark:text-graphite-300 dark:hover:text-signal-400 rounded-sm p-2 shadow-lg border border-graphite-200 dark:border-graphite-600">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-                <div class="px-5 py-3 border-b border-graphite-200 dark:border-graphite-700">
-                    <h3 class="op-eyebrow text-graphite-500 dark:text-graphite-400" x-text="modalTitle"></h3>
-                </div>
-                <div class="p-4 overflow-auto max-h-[80vh]">
-                    <img :src="modalImg" class="w-full rounded-sm">
-                </div>
-            </div>
-        </div>
-
-    </div>
     @else
-    <!-- Empty State -->
-    <div class="my-10">
-        <div x-show="!isLoading" x-cloak class="bg-paper-100 dark:bg-graphite-900 rounded-sm border border-dashed border-graphite-300 dark:border-graphite-700 p-12 text-center transition-colors">
-            <div class="inline-flex p-3.5 rounded-sm border border-graphite-300 dark:border-graphite-700 text-graphite-500 dark:text-graphite-400 mb-4">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                </svg>
+        <!-- Empty State -->
+        <div class="my-10">
+            <div x-show="!isLoading" x-cloak class="bg-paper-100 dark:bg-graphite-900 rounded-sm border border-dashed border-graphite-300 dark:border-graphite-700 p-12 text-center transition-colors">
+                <div class="inline-flex p-3.5 rounded-sm border border-graphite-300 dark:border-graphite-700 text-graphite-500 dark:text-graphite-400 mb-4">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <h3 class="font-mono text-sm font-semibold uppercase tracking-wider text-graphite-700 dark:text-graphite-300">No Dataset Loaded</h3>
+                <p class="text-graphite-500 dark:text-graphite-400 text-sm max-w-md mx-auto mt-2">Upload a ticketing export using the control above to generate charts and summaries.</p>
             </div>
-            <h3 class="font-mono text-sm font-semibold uppercase tracking-wider text-graphite-700 dark:text-graphite-300">No Dataset Loaded</h3>
-            <p class="text-graphite-500 dark:text-graphite-400 text-sm max-w-md mx-auto mt-2">Upload a ticketing export using the control above to generate charts and summaries.</p>
-        </div>
 
-        <div x-show="isLoading" x-cloak class="bg-paper-100 dark:bg-graphite-900 rounded-sm border border-dashed border-graphite-300 dark:border-graphite-700 p-16 text-center transition-colors">
-            <div class="flex flex-col items-center justify-center gap-4">
-                <svg class="h-9 w-9 animate-spin text-signal-600 dark:text-signal-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <div>
-                    <h3 class="font-mono text-sm font-semibold uppercase tracking-wider text-graphite-700 dark:text-graphite-300">Processing Dataset&hellip;</h3>
-                    <p class="text-graphite-500 dark:text-graphite-400 text-sm mt-2">This may take a few moments while your charts are generated.</p>
+            <div x-show="isLoading" x-cloak class="bg-paper-100 dark:bg-graphite-900 rounded-sm border border-dashed border-graphite-300 dark:border-graphite-700 p-16 text-center transition-colors">
+                <div class="flex flex-col items-center justify-center gap-4">
+                    <svg class="h-9 w-9 animate-spin text-signal-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <div>
+                        <h3 class="font-mono text-sm font-semibold uppercase tracking-wider text-graphite-700 dark:text-graphite-300">Processing Dataset&hellip;</h3>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
     @endif
 </div>
+
+<!-- Reusable Alpine / Chart.js Factory -->
+<script>
+    // Shared styling logic for all charts
+    function getChartTheme() {
+        const isDark = document.body.classList.contains('dark');
+        return {
+            gridColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(10,12,16,0.08)',
+            textColor: isDark ? '#A7ACB4' : '#565D66',
+            fontSettings: { family: "'IBM Plex Mono', monospace", size: 11 }
+        };
+    }
+
+    function applyThemeToInstance(chartInstance, horizontal) {
+        if (!chartInstance) return;
+        const theme = getChartTheme();
+        chartInstance.options.scales.x.grid.color = horizontal ? theme.gridColor : 'transparent';
+        chartInstance.options.scales.x.ticks.color = theme.textColor;
+        chartInstance.options.scales.y.grid.color = !horizontal ? theme.gridColor : 'transparent';
+        chartInstance.options.scales.y.ticks.color = theme.textColor;
+        chartInstance.update();
+    }
+
+    // 1. STANDARD CHART (No filters - used for complaints)
+    function standardTicketChart(rawData, xKey, yKey, type = 'bar', horizontal = false) {
+        let chartInstance = null;
+        return {
+            init() {
+                if (!rawData || Object.keys(rawData).length === 0) return;
+                this.$nextTick(() => this.buildChart());
+                this.$watch('darkMode', () => applyThemeToInstance(chartInstance, horizontal));
+            },
+            buildChart() {
+                const canvas = this.$refs.canvas;
+                if (!canvas) return;
+
+                const labels = Array.isArray(rawData) ? rawData.map(d => d[xKey]) : Object.keys(rawData);
+                const values = Array.isArray(rawData) ? rawData.map(d => d[yKey]) : Object.values(rawData);
+                const theme = getChartTheme();
+
+                chartInstance = new Chart(canvas.getContext('2d'), {
+                    type: type,
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: '#D98E2B',
+                            borderColor: '#D98E2B',
+                            borderWidth: 1,
+                            tension: 0.3,
+                            fill: type === 'line' ? { target: 'origin', above: 'rgba(217, 142, 43, 0.15)' } : false,
+                        }]
+                    },
+                    options: {
+                        indexAxis: horizontal ? 'y' : 'x',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { grid: { color: horizontal ? theme.gridColor : 'transparent' }, ticks: { color: theme.textColor, font: theme.fontSettings } },
+                            y: { grid: { color: !horizontal ? theme.gridColor : 'transparent' }, ticks: { color: theme.textColor, font: theme.fontSettings } }
+                        }
+                    }
+                });
+            }
+        };
+    }
+
+    // 2. AREA FILTERED CHART (Checkboxes)
+    function areaFilteredChart(rawData, xKey, yKey, type = 'bar', horizontal = false) {
+        let chartInstance = null;
+        return {
+            rawData: rawData || [],
+            availableAreas: [],
+            selectedAreas: [],
+
+            init() {
+                if (this.rawData.length === 0) return;
+                this.availableAreas = [...new Set(this.rawData.map(d => d[xKey]))].sort();
+                this.selectedAreas = [...this.availableAreas];
+
+                this.$nextTick(() => this.buildChart());
+                this.$watch('darkMode', () => applyThemeToInstance(chartInstance, horizontal));
+                this.$watch('selectedAreas', () => this.updateChart());
+            },
+
+            toggleArea(area) {
+                const idx = this.selectedAreas.indexOf(area);
+                if (idx > -1) this.selectedAreas.splice(idx, 1);
+                else this.selectedAreas.push(area);
+            },
+            selectAll() { this.selectedAreas = [...this.availableAreas]; },
+            clearAll() { this.selectedAreas = []; },
+
+            getFilteredData() {
+                return this.rawData.filter(d => this.selectedAreas.includes(d[xKey]));
+            },
+
+            buildChart() {
+                const canvas = this.$refs.canvas;
+                if (!canvas) return;
+
+                const filtered = this.getFilteredData();
+                const theme = getChartTheme();
+
+                chartInstance = new Chart(canvas.getContext('2d'), {
+                    type: type,
+                    data: {
+                        labels: filtered.map(d => d[xKey]),
+                        datasets: [{
+                            data: filtered.map(d => d[yKey]),
+                            backgroundColor: '#D98E2B', borderColor: '#D98E2B', borderWidth: 1, tension: 0.3
+                        }]
+                    },
+                    options: {
+                        indexAxis: horizontal ? 'y' : 'x',
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { grid: { color: horizontal ? theme.gridColor : 'transparent' }, ticks: { color: theme.textColor, font: theme.fontSettings } },
+                            y: { grid: { color: !horizontal ? theme.gridColor : 'transparent' }, ticks: { color: theme.textColor, font: theme.fontSettings } }
+                        }
+                    }
+                });
+            },
+
+            updateChart() {
+                if (!chartInstance) return;
+                const filtered = this.getFilteredData();
+                chartInstance.data.labels = filtered.map(d => d[xKey]);
+                chartInstance.data.datasets[0].data = filtered.map(d => d[yKey]);
+                chartInstance.update();
+            }
+        };
+    }
+
+    // 3. DATE FILTERED CHART (Month Inputs)
+    function dateFilteredChart(rawData, xKey, yKey, type = 'line', horizontal = false) {
+        let chartInstance = null;
+        return {
+            rawData: rawData || [],
+            tempStart: '',
+            tempEnd: '',
+
+            init() {
+                if (this.rawData.length === 0) return;
+                this.resetFilter();
+                this.$nextTick(() => this.buildChart());
+                this.$watch('darkMode', () => applyThemeToInstance(chartInstance, horizontal));
+            },
+
+            applyFilter() { this.updateChart(); },
+            
+            resetFilter() {
+                const dates = this.rawData.map(d => d[xKey]).sort();
+                if (dates.length > 0) {
+                    this.tempStart = dates[0];                  // Earliest date in the dataset
+                    this.tempEnd = dates[dates.length - 1];     // Latest date in the dataset
+                }
+                this.updateChart();
+            },
+
+            getFilteredData() {
+                let filtered = this.rawData;
+                if (this.tempStart) filtered = filtered.filter(d => d[xKey] >= this.tempStart);
+                if (this.tempEnd) filtered = filtered.filter(d => d[xKey] <= this.tempEnd);
+                return filtered;
+            },
+
+            buildChart() {
+                const canvas = this.$refs.canvas;
+                if (!canvas) return;
+
+                const filtered = this.getFilteredData();
+                const theme = getChartTheme();
+
+                chartInstance = new Chart(canvas.getContext('2d'), {
+                    type: type,
+                    data: {
+                        labels: filtered.map(d => d[xKey]),
+                        datasets: [{
+                            data: filtered.map(d => d[yKey]),
+                            backgroundColor: '#D98E2B', borderColor: '#D98E2B', borderWidth: 1, tension: 0.3,
+                            fill: type === 'line' ? { target: 'origin', above: 'rgba(217, 142, 43, 0.15)' } : false,
+                        }]
+                    },
+                    options: {
+                        indexAxis: horizontal ? 'y' : 'x',
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { grid: { color: horizontal ? theme.gridColor : 'transparent' }, ticks: { color: theme.textColor, font: theme.fontSettings } },
+                            y: { grid: { color: !horizontal ? theme.gridColor : 'transparent' }, ticks: { color: theme.textColor, font: theme.fontSettings } }
+                        }
+                    }
+                });
+            },
+
+            updateChart() {
+                if (!chartInstance) return;
+                const filtered = this.getFilteredData();
+                chartInstance.data.labels = filtered.map(d => d[xKey]);
+                chartInstance.data.datasets[0].data = filtered.map(d => d[yKey]);
+                chartInstance.update();
+            }
+        };
+    }
+</script>
 </body>
 </html>
