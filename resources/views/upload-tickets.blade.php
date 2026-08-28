@@ -267,7 +267,7 @@
     }
 
     // 2. AREA FILTERED CHART (Checkboxes)
-    function areaFilteredChart(rawData, type = 'bar', horizontal = false) {
+    function areaFilteredChart(rawData, xKey, yKey, type = 'bar', horizontal = false) {
         let chartInstance = null;
         return {
             rawData: rawData || [],
@@ -279,8 +279,8 @@
             init() {
                 if (this.rawData.length === 0) return;
                 
-                // Populate checkboxes with unique area names
-                this.availableAreas = [...new Set(this.rawData.map(d => d.Area))].sort();
+                // Extract unique area options using xKey
+                this.availableAreas = [...new Set(this.rawData.map(d => d[xKey]))].filter(Boolean).sort();
                 this.selectedAreas = [...this.availableAreas];
 
                 this.resetDateFilter();
@@ -311,23 +311,27 @@
             },
 
             getAggregatedData() {
-                // Filter by selected areas AND date range
+                // Filter by selected areas AND optional date range
                 const filtered = this.rawData.filter(d => {
-                    if (!d.Date) return false;
-                    const areaMatch = this.selectedAreas.includes(d.Area);
-                    const startMatch = !this.tempStart || d.Date >= this.tempStart;
-                    const endMatch = !this.tempEnd || d.Date <= this.tempEnd;
+                    const areaMatch = this.selectedAreas.includes(d[xKey]);
+                    const startMatch = !this.tempStart || !d.Date || d.Date >= this.tempStart;
+                    const endMatch = !this.tempEnd || !d.Date || d.Date <= this.tempEnd;
                     return areaMatch && startMatch && endMatch;
                 });
 
-                // Group and aggregate counts per Area
-                const counts = {};
+                // IF yKey is provided, use pre-calculated values; OTHERWISE count raw record occurrences
+                const results = {};
                 filtered.forEach(d => {
-                    counts[d.Area] = (counts[d.Area] || 0) + 1;
+                    const label = d[xKey];
+                    if (yKey) {
+                        results[label] = d[yKey];
+                    } else {
+                        results[label] = (results[label] || 0) + 1;
+                    }
                 });
 
-                // Sort descending by count
-                const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+                // Sort descending by value
+                const sorted = Object.entries(results).sort((a, b) => b[1] - a[1]);
                 return {
                     labels: sorted.map(item => item[0]),
                     values: sorted.map(item => item[1])
@@ -347,12 +351,16 @@
                         labels: agg.labels,
                         datasets: [{
                             data: agg.values,
-                            backgroundColor: '#D98E2B', borderColor: '#D98E2B', borderWidth: 1, tension: 0.3
+                            backgroundColor: '#D98E2B', 
+                            borderColor: '#D98E2B', 
+                            borderWidth: 1, 
+                            tension: 0.3
                         }]
                     },
                     options: {
                         indexAxis: horizontal ? 'y' : 'x',
-                        responsive: true, maintainAspectRatio: false,
+                        responsive: true, 
+                        maintainAspectRatio: false,
                         plugins: { legend: { display: false } },
                         scales: {
                             x: { grid: { color: horizontal ? theme.gridColor : 'transparent' }, ticks: { color: theme.textColor, font: theme.fontSettings } },

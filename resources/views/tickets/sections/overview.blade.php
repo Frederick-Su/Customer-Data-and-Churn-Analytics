@@ -37,7 +37,7 @@
         <div class="px-5 py-3 border-b border-graphite-200 dark:border-graphite-800">
             <h3 class="op-eyebrow text-graphite-500 dark:text-graphite-400">Tickets by Area</h3>
         </div>
-        <div class="p-5" x-data="areaFilteredChart(@js($summaries['1_tickets_by_area']), 'bar', false)">
+        <div class="p-5" x-data="areaFilteredChart(@js($summaries['1_tickets_by_area']), 'Area', null, 'bar', false)">
             
             <!-- Date Period Filter -->
             <form @submit.prevent="applyDateFilter()" class="flex flex-wrap items-end gap-3 mb-5 bg-graphite-50 dark:bg-graphite-950/40 p-3 rounded-sm border border-graphite-200 dark:border-graphite-800">
