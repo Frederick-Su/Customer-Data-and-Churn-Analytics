@@ -11,11 +11,11 @@
             <form @submit.prevent="applyFilter()" class="flex flex-wrap items-end gap-4 mb-6 bg-graphite-50 dark:bg-graphite-950/40 p-3 rounded-sm border border-graphite-200 dark:border-graphite-800">
                 <div>
                     <label class="block font-mono text-[11px] uppercase tracking-wider text-graphite-400 dark:text-graphite-500 mb-1">Start Month</label>
-                    <input type="month" x-model="tempStart" class="cursor-pointer font-mono text-sm bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-700 rounded-sm px-3 py-1.5 text-graphite-800 dark:text-graphite-100 focus:outline-none focus:ring-1 focus:ring-signal-500 dark:[color-scheme:dark]">
+                    <input type="month" x-model="tempStart" @click="$el.showPicker && $el.showPicker()" class="cursor-pointer font-mono text-sm bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-700 rounded-sm px-3 py-1.5 text-graphite-800 dark:text-graphite-100 focus:outline-none focus:ring-1 focus:ring-signal-500 dark:[color-scheme:dark]">
                 </div>
                 <div>
                     <label class="block font-mono text-[11px] uppercase tracking-wider text-graphite-400 dark:text-graphite-500 mb-1">End Month</label>
-                    <input type="month" x-model="tempEnd" class="cursor-pointer font-mono text-sm bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-700 rounded-sm px-3 py-1.5 text-graphite-800 dark:text-graphite-100 focus:outline-none focus:ring-1 focus:ring-signal-500 dark:[color-scheme:dark]">
+                    <input type="month" x-model="tempEnd" @click="$el.showPicker && $el.showPicker()" class="cursor-pointer font-mono text-sm bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-700 rounded-sm px-3 py-1.5 text-graphite-800 dark:text-graphite-100 focus:outline-none focus:ring-1 focus:ring-signal-500 dark:[color-scheme:dark]">
                 </div>
                 <button type="submit" class="bg-signal-600 hover:bg-signal-700 dark:bg-signal-500 dark:hover:bg-signal-400 text-paper-50 dark:text-graphite-950 font-mono font-semibold uppercase tracking-wider px-4 py-1.5 rounded-sm transition-colors text-xs">
                     Apply
@@ -43,11 +43,11 @@
             <form @submit.prevent="applyDateFilter()" class="flex flex-wrap items-end gap-3 mb-5 bg-graphite-50 dark:bg-graphite-950/40 p-3 rounded-sm border border-graphite-200 dark:border-graphite-800">
                 <div>
                     <label class="block font-mono text-[10px] uppercase tracking-wider text-graphite-400 dark:text-graphite-500 mb-1">Start Month</label>
-                    <input type="month" x-model="tempStart" class="cursor-pointer font-mono text-xs bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-700 rounded-sm px-2.5 py-1 text-graphite-800 dark:text-graphite-100 focus:outline-none focus:ring-1 focus:ring-signal-500 dark:[color-scheme:dark]">
+                    <input type="month" x-model="tempStart" @click="$el.showPicker && $el.showPicker()" class="cursor-pointer font-mono text-xs bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-700 rounded-sm px-2.5 py-1 text-graphite-800 dark:text-graphite-100 focus:outline-none focus:ring-1 focus:ring-signal-500 dark:[color-scheme:dark]">
                 </div>
                 <div>
                     <label class="block font-mono text-[10px] uppercase tracking-wider text-graphite-400 dark:text-graphite-500 mb-1">End Month</label>
-                    <input type="month" x-model="tempEnd" class="cursor-pointer font-mono text-xs bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-700 rounded-sm px-2.5 py-1 text-graphite-800 dark:text-graphite-100 focus:outline-none focus:ring-1 focus:ring-signal-500 dark:[color-scheme:dark]">
+                    <input type="month" x-model="tempEnd" @click="$el.showPicker && $el.showPicker()" class="cursor-pointer font-mono text-xs bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-700 rounded-sm px-2.5 py-1 text-graphite-800 dark:text-graphite-100 focus:outline-none focus:ring-1 focus:ring-signal-500 dark:[color-scheme:dark]">
                 </div>
                 <button type="submit" class="bg-signal-600 hover:bg-signal-700 dark:bg-signal-500 dark:hover:bg-signal-400 text-paper-50 dark:text-graphite-950 font-mono font-semibold uppercase tracking-wider px-3 py-1 rounded-sm transition-colors text-[11px]">
                     Apply
@@ -107,11 +107,11 @@
             <form @submit.prevent="applyFilter()" class="flex flex-wrap items-end gap-4 mb-6 bg-graphite-50 dark:bg-graphite-950/40 p-3 rounded-sm border border-graphite-200 dark:border-graphite-800">
                 <div>
                     <label class="block font-mono text-[11px] uppercase tracking-wider text-graphite-400 dark:text-graphite-500 mb-1">Start Month</label>
-                    <input type="month" x-model="tempStart" class="cursor-pointer font-mono text-sm bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-700 rounded-sm px-3 py-1.5 text-graphite-800 dark:text-graphite-100 focus:outline-none focus:ring-1 focus:ring-signal-500 dark:[color-scheme:dark]">
+                    <input type="month" x-model="tempStart" @click="$el.showPicker && $el.showPicker()" class="cursor-pointer font-mono text-sm bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-700 rounded-sm px-3 py-1.5 text-graphite-800 dark:text-graphite-100 focus:outline-none focus:ring-1 focus:ring-signal-500 dark:[color-scheme:dark]">
                 </div>
                 <div>
                     <label class="block font-mono text-[11px] uppercase tracking-wider text-graphite-400 dark:text-graphite-500 mb-1">End Month</label>
-                    <input type="month" x-model="tempEnd" class="cursor-pointer font-mono text-sm bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-700 rounded-sm px-3 py-1.5 text-graphite-800 dark:text-graphite-100 focus:outline-none focus:ring-1 focus:ring-signal-500 dark:[color-scheme:dark]">
+                    <input type="month" x-model="tempEnd" @click="$el.showPicker && $el.showPicker()" class="cursor-pointer font-mono text-sm bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-700 rounded-sm px-3 py-1.5 text-graphite-800 dark:text-graphite-100 focus:outline-none focus:ring-1 focus:ring-signal-500 dark:[color-scheme:dark]">
                 </div>
                 <button type="submit" class="bg-signal-600 hover:bg-signal-700 dark:bg-signal-500 dark:hover:bg-signal-400 text-paper-50 dark:text-graphite-950 font-mono font-semibold uppercase tracking-wider px-4 py-1.5 rounded-sm transition-colors text-xs">
                     Apply
