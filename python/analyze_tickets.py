@@ -126,24 +126,14 @@ with open(os.path.join(output_dir, "2_tickets_by_complaint.json"), "w") as f:
 # ============================================================
 # 3. TOP 20 VN IDs BY COMPLAINT COUNT
 # ============================================================
-top_20_complainers = df['VN ID'].value_counts().head(20)
+top_20_complainers = df['VN ID'].dropna().value_counts().head(20).index
+complainer_df = df[df['VN ID'].isin(top_20_complainers)]
 
-plt.figure(figsize=(10, 8))
-ax = sns.barplot(x=top_20_complainers.values, y=top_20_complainers.index, palette='viridis')
-ax.xaxis.set_major_locator(ticker.MultipleLocator(5))
-ax.xaxis.set_minor_locator(ticker.MultipleLocator(1))
-ax.tick_params(axis='x', which='major', length=7, width=1.5)
-ax.tick_params(axis='x', which='minor', length=4, color='gray')
-
-plt.title('Top 20 VN IDs by Complaint Count', fontsize=14, fontweight='bold')
-plt.xlabel('Complaint Count', fontsize=12)
-plt.ylabel('VN ID', fontsize=12)
-plt.tight_layout()
-plt.savefig(os.path.join(output_dir, "3_top_vn_ids.png"))
-plt.close()
+complainer_df['Date'] = complainer_df['Creation Time'].dt.strftime('%Y-%m')
+top_20_export = complainer_df[['VN ID', 'Date']].to_dict(orient='records')
 
 with open(os.path.join(output_dir, "3_top_vn_ids.json"), "w") as f:
-    json.dump(top_20_complainers.to_dict(), f, indent=4)
+    json.dump(top_20_export, f, indent=4)
 
 # ============================================================
 # 4. MEDIAN DURATION BY AREA

@@ -452,6 +452,7 @@
         };
     }
 
+    // 4. PROPORTION PIE CHART
     function complaintPieChart(rawData) {
         let chartInstance = null;
         return {
@@ -578,6 +579,130 @@
                 chartInstance.data.datasets[0].data = sliceData.values;
                 chartInstance.data.datasets[0].borderColor = isDark ? '#14171B' : '#FFFFFF';
                 chartInstance.options.plugins.legend.labels.color = isDark ? '#A7ACB4' : '#565D66';
+                chartInstance.update();
+            }
+        };
+    }
+
+    // 5. MOST FREQUENT COMPLAINERS CHART
+    function vnIdHotspotChart(rawData) {
+        let chartInstance = null;
+        return {
+            rawData: rawData || [],
+            tempStart: '',
+            tempEnd: '',
+
+            init() {
+                if (this.rawData.length === 0) return;
+
+                this.resetDateFilter();
+                this.$nextTick(() => this.buildChart());
+                this.$watch('darkMode', () => applyThemeToInstance(chartInstance, true));
+            },
+
+            // Helper to compute previous month given YYYY-MM
+            getPreviousMonth(yearMonthStr) {
+                const [yearStr, monthStr] = yearMonthStr.split('-');
+                let year = parseInt(yearStr, 10);
+                let month = parseInt(monthStr, 10) - 1; // Subtract 1 month
+
+                if (month === 0) {
+                    month = 12;
+                    year -= 1;
+                }
+
+                return `${year}-${String(month).padStart(2, '0')}`;
+            },
+
+            resetDateFilter() {
+                // Find unique YYYY-MM dates from dataset
+                const dates = this.rawData
+                    .map(d => d.Date || d.Month)
+                    .filter(Boolean)
+                    .sort();
+
+                if (dates.length > 0) {
+                    const latestDate = dates[dates.length - 1];
+                    this.tempStart = this.getPreviousMonth(latestDate); // Defaults to previous month
+                    this.tempEnd = latestDate;                          // Latest month in dataset
+                }
+                this.updateChart();
+            },
+
+            getFilteredData() {
+                let filtered = this.rawData;
+                
+                // Apply month range filtering if dates exist in records
+                if (this.tempStart || this.tempEnd) {
+                    filtered = filtered.filter(d => {
+                        const rowDate = d.Date || d.Month;
+                        if (!rowDate) return true;
+                        const afterStart = !this.tempStart || rowDate >= this.tempStart;
+                        const beforeEnd = !this.tempEnd || rowDate <= this.tempEnd;
+                        return afterStart && beforeEnd;
+                    });
+                }
+
+                // Aggregate counts by VN ID / User ID
+                const counts = {};
+                filtered.forEach(d => {
+                    const id = d['VN_ID'] || d['VN ID'] || d['User ID'] || d.label;
+                    if (id) {
+                        counts[id] = (counts[id] || 0) + (d.Value || d.count || 1);
+                    }
+                });
+
+                // Sort descending and take top 20
+                const sorted = Object.entries(counts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 20);
+
+                return {
+                    labels: sorted.map(i => i[0]),
+                    values: sorted.map(i => i[1])
+                };
+            },
+
+            applyDateFilter() {
+                this.updateChart();
+            },
+
+            buildChart() {
+                const canvas = this.$refs.canvas;
+                if (!canvas) return;
+
+                const agg = this.getFilteredData();
+                const theme = getChartTheme();
+
+                chartInstance = new Chart(canvas.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: agg.labels,
+                        datasets: [{
+                            data: agg.values,
+                            backgroundColor: '#D98E2B',
+                            borderColor: '#D98E2B',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y', // Horizontal Bar Chart
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { grid: { color: theme.gridColor }, ticks: { color: theme.textColor, font: theme.fontSettings } },
+                            y: { grid: { color: 'transparent' }, ticks: { color: theme.textColor, font: theme.fontSettings } }
+                        }
+                    }
+                });
+            },
+
+            updateChart() {
+                if (!chartInstance) return;
+                const agg = this.getFilteredData();
+                chartInstance.data.labels = agg.labels;
+                chartInstance.data.datasets[0].data = agg.values;
                 chartInstance.update();
             }
         };
