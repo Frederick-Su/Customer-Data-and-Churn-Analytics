@@ -33,7 +33,11 @@
                 <div class="flex flex-wrap gap-2 max-h-32 overflow-y-auto pr-2">
                     <template x-for="region in availableRegions" :key="region">
                         <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-mono bg-graphite-50 dark:bg-graphite-950/40 border border-graphite-200 dark:border-graphite-700 cursor-pointer text-graphite-700 dark:text-graphite-300 hover:border-signal-600 dark:hover:border-signal-500 transition-colors">
-                            <input type="checkbox" :value="region" x-model="selectedRegions" class="rounded-sm border-graphite-300 text-signal-600 focus:ring-signal-500">
+                            <input type="checkbox" 
+                                :value="region" 
+                                :checked="selectedRegions.includes(region)"
+                                @change="toggleRegion(region)"
+                                class="rounded-sm border-graphite-300 text-signal-600 focus:ring-signal-500">
                             <span x-text="region"></span>
                         </label>
                     </template>
@@ -55,7 +59,7 @@
                 </div>
 
                 <button type="submit" class="bg-signal-600 hover:bg-signal-700 dark:bg-signal-500 dark:hover:bg-signal-400 text-paper-50 dark:text-graphite-950 font-mono font-semibold uppercase tracking-wider px-5 py-2 rounded-sm transition-colors text-xs">
-                    Apply Filters
+                    Apply
                 </button>
 
                 <button type="button" @click="resetFilter()" class="font-mono text-[11px] uppercase tracking-wider text-graphite-500 dark:text-graphite-400 hover:text-signal-600 dark:hover:text-signal-400 hover:underline py-2">
@@ -95,81 +99,108 @@
 
 <script>
 function activityFilter(rawActive, rawChurn) {
+    let activeChartInstance = null;
+    let churnChartInstance = null;
+
+    // Master arrays holding all calculated datasets in memory
+    let masterActiveDatasets = [];
+    let masterChurnDatasets = [];
+
     return {
-        rawDataActive: rawActive,
-        rawDataChurn: rawChurn,
+        rawDataActive: rawActive || [],
+        rawDataChurn: rawChurn || [],
         availableRegions: [],
         selectedRegions: [],
         tempStart: '',
         tempEnd: '',
-        activeChart: null,
-        churnChart: null,
+        appliedStart: '',
+        appliedEnd: '',
 
         initCharts() {
-            // Extract unique regions from active and churn datasets
             const activeRegions = this.rawDataActive.map(d => d.Region);
             const churnRegions = this.rawDataChurn.map(d => d.Region);
-            this.availableRegions = [...new Set([...activeRegions, ...churnRegions])].filter(Boolean);
-            
-            // Default to selecting all regions
+            this.availableRegions = [...new Set([...activeRegions, ...churnRegions])].filter(Boolean).sort();
             this.selectedRegions = [...this.availableRegions];
 
-            this.renderCharts(this.rawDataActive, this.rawDataChurn);
+            this.buildCharts();
+        },
+
+        toggleRegion(region) {
+            const idx = this.selectedRegions.indexOf(region);
+            if (idx > -1) {
+                this.selectedRegions.splice(idx, 1);
+            } else {
+                this.selectedRegions.push(region);
+            }
+            this.updateDisplayedDatasets();
         },
 
         selectAllRegions() {
             this.selectedRegions = [...this.availableRegions];
+            this.updateDisplayedDatasets();
         },
 
         deselectAllRegions() {
             this.selectedRegions = [];
+            this.updateDisplayedDatasets();
+        },
+
+        // Filters master dataset arrays and updates charts directly
+        updateDisplayedDatasets() {
+            if (activeChartInstance) {
+                activeChartInstance.data.datasets = masterActiveDatasets.filter(ds => 
+                    this.selectedRegions.includes(ds.label)
+                );
+                activeChartInstance.update();
+            }
+
+            if (churnChartInstance) {
+                churnChartInstance.data.datasets = masterChurnDatasets.filter(ds => 
+                    this.selectedRegions.includes(ds.label)
+                );
+                churnChartInstance.update();
+            }
         },
 
         applyFilter() {
-            let active = this.rawDataActive;
-            let churn = this.rawDataChurn;
-
-            // 1. Filter by Selected Regions
-            if (this.selectedRegions.length > 0) {
-                active = active.filter(d => this.selectedRegions.includes(d.Region));
-                churn = churn.filter(d => this.selectedRegions.includes(d.Region));
-            } else {
-                active = [];
-                churn = [];
-            }
-
-            // 2. Filter by Date Range
-            if (this.tempStart) {
-                active = active.filter(d => d.Month >= this.tempStart);
-                churn = churn.filter(d => d.Month >= this.tempStart);
-            }
-            if (this.tempEnd) {
-                active = active.filter(d => d.Month <= this.tempEnd);
-                churn = churn.filter(d => d.Month <= this.tempEnd);
-            }
-
-            this.renderCharts(active, churn);
+            this.appliedStart = this.tempStart;
+            this.appliedEnd = this.tempEnd;
+            this.updateChartData();
         },
 
         resetFilter() {
             this.tempStart = '';
             this.tempEnd = '';
-            this.renderCharts(this.rawDataActive, this.rawDataChurn);
+            this.appliedStart = '';
+            this.appliedEnd = '';
+            this.updateChartData();
         },
 
-        renderCharts(activeData, churnData) {
-            if (this.activeChart) this.activeChart.destroy();
-            if (this.churnChart) this.churnChart.destroy();
+        buildCharts() {
+            const activeCanvas = document.getElementById('activeCustomersChart');
+            const churnCanvas = document.getElementById('churnPercentageChart');
+            if (!activeCanvas || !churnCanvas) return;
 
-            const regions = [...new Set(activeData.map(d => d.Region))];
-            const months = [...new Set(activeData.map(d => d.Month))].sort();
-            
+            let activeData = this.rawDataActive;
+            let churnData = this.rawDataChurn;
+
+            if (this.appliedStart) {
+                activeData = activeData.filter(d => d.Month >= this.appliedStart);
+                churnData = churnData.filter(d => d.Month >= this.appliedStart);
+            }
+            if (this.appliedEnd) {
+                activeData = activeData.filter(d => d.Month <= this.appliedEnd);
+                churnData = churnData.filter(d => d.Month <= this.appliedEnd);
+            }
+
+            const activeMonths = [...new Set(activeData.map(d => d.Month))].filter(Boolean).sort();
+            const churnMonths = [...new Set(churnData.map(d => d.Month))].filter(Boolean).sort();
             const colors = ['#D98E2B', '#4A6C8C', '#3FA76B', '#C0453A', '#8A6D3B', '#6B8E9E', '#9B8557'];
 
-            // Build Dataset: Active Customers (One line per selected region)
-            const activeDatasets = this.selectedRegions.map((region, idx) => ({
+            // Store full dataset arrays in closure variables
+            masterActiveDatasets = this.availableRegions.map((region, idx) => ({
                 label: region,
-                data: months.map(m => {
+                data: activeMonths.map(m => {
                     const row = activeData.find(d => d.Region === region && d.Month === m);
                     return row ? row['Active Customers'] : 0;
                 }),
@@ -178,16 +209,9 @@ function activityFilter(rawActive, rawChurn) {
                 tension: 0.3
             }));
 
-            this.activeChart = new Chart(document.getElementById('activeCustomersChart'), {
-                type: 'line',
-                data: { labels: months, datasets: activeDatasets },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-
-            // Build Dataset: Churn Percentage (One line per selected region)
-            const churnDatasets = this.selectedRegions.map((region, idx) => ({
+            masterChurnDatasets = this.availableRegions.map((region, idx) => ({
                 label: region,
-                data: months.map(m => {
+                data: churnMonths.map(m => {
                     const row = churnData.find(d => d.Region === region && d.Month === m);
                     return row ? row['Monthly Churn Percentage'] : 0;
                 }),
@@ -196,16 +220,72 @@ function activityFilter(rawActive, rawChurn) {
                 tension: 0.3
             }));
 
-            this.churnChart = new Chart(document.getElementById('churnPercentageChart'), {
+            // Instantiate charts with filtered datasets matching current checkbox state
+            activeChartInstance = new Chart(activeCanvas.getContext('2d'), {
                 type: 'line',
-                data: { labels: months, datasets: churnDatasets },
+                data: { 
+                    labels: activeMonths, 
+                    datasets: masterActiveDatasets.filter(ds => this.selectedRegions.includes(ds.label)) 
+                },
+                options: { responsive: true, maintainAspectRatio: false, }
+            });
+
+            churnChartInstance = new Chart(churnCanvas.getContext('2d'), {
+                type: 'line',
+                data: { 
+                    labels: churnMonths, 
+                    datasets: masterChurnDatasets.filter(ds => this.selectedRegions.includes(ds.label)) 
+                },
                 options: { 
                     responsive: true, 
                     maintainAspectRatio: false,
                     scales: { y: { ticks: { callback: v => v + '%' } } }
                 }
             });
+        },
+
+        // Recalculates master numerical data when Apply (date ranges) is clicked
+        updateChartData() {
+            let activeData = this.rawDataActive;
+            let churnData = this.rawDataChurn;
+
+            if (this.appliedStart) {
+                activeData = activeData.filter(d => d.Month >= this.appliedStart);
+                churnData = churnData.filter(d => d.Month >= this.appliedStart);
+            }
+            if (this.appliedEnd) {
+                activeData = activeData.filter(d => d.Month <= this.appliedEnd);
+                churnData = churnData.filter(d => d.Month <= this.appliedEnd);
+            }
+
+            const activeMonths = [...new Set(activeData.map(d => d.Month))].filter(Boolean).sort();
+            const churnMonths = [...new Set(churnData.map(d => d.Month))].filter(Boolean).sort();
+
+            // Rebuild master values
+            masterActiveDatasets.forEach(ds => {
+                ds.data = activeMonths.map(m => {
+                    const row = activeData.find(d => d.Region === ds.label && d.Month === m);
+                    return row ? row['Active Customers'] : 0;
+                });
+            });
+
+            masterChurnDatasets.forEach(ds => {
+                ds.data = churnMonths.map(m => {
+                    const row = churnData.find(d => d.Region === ds.label && d.Month === m);
+                    return row ? row['Monthly Churn Percentage'] : 0;
+                });
+            });
+
+            if (activeChartInstance) {
+                activeChartInstance.data.labels = activeMonths;
+            }
+            if (churnChartInstance) {
+                churnChartInstance.data.labels = churnMonths;
+            }
+
+            // Sync currently visible datasets to match updated numbers
+            this.updateDisplayedDatasets();
         }
-    }
+    };
 }
 </script>

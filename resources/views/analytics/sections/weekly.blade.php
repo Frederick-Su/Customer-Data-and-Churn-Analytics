@@ -1,7 +1,10 @@
 <div x-show="activeTab === 'weekly'" 
      x-cloak 
      x-data="siteChurnFilter(@js($summaries['6_site_monthly_churn'] ?? []))"
-     x-init="$nextTick(() => initChart())"
+     x-init="
+        $nextTick(() => initChart());
+        $watch('darkMode', () => updateTheme());
+    "
      class="space-y-6">
 
     <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 rounded-sm transition-colors">
@@ -79,7 +82,7 @@
                 </div>
 
                 <button type="submit" class="bg-signal-600 hover:bg-signal-700 dark:bg-signal-500 dark:hover:bg-signal-400 text-paper-50 dark:text-graphite-950 font-mono font-semibold uppercase tracking-wider px-5 py-2 rounded-sm transition-colors text-xs">
-                    Apply Filters
+                    Apply
                 </button>
 
                 <button type="button" @click="resetFilter()" class="font-mono text-[11px] uppercase tracking-wider text-graphite-500 dark:text-graphite-400 hover:text-signal-600 dark:hover:text-signal-400 hover:underline py-2">
@@ -97,8 +100,11 @@
 
 <script>
 function siteChurnFilter(siteData) {
+    // Local closure variable — completely unproxied by Alpine's reactivity system
+    let chartInstance = null;
+
     return {
-        rawData: siteData,
+        rawData: siteData || [],
         regions: [],
         selectedRegions: [],
         availableSites: [],
@@ -106,10 +112,13 @@ function siteChurnFilter(siteData) {
         siteSearch: '',
         tempStart: '',
         tempEnd: '',
-        chart: null,
+        appliedStart: '',
+        appliedEnd: '',
 
         initChart() {
-            // Extract unique regions (if region field is present)
+            if (!this.rawData || this.rawData.length === 0) return;
+
+            // Extract unique regions
             this.regions = [...new Set(this.rawData.map(d => d.Region))].filter(Boolean).sort();
             this.selectedRegions = [...this.regions];
 
@@ -117,25 +126,27 @@ function siteChurnFilter(siteData) {
             this.availableSites = [...new Set(this.rawData.map(d => d.Site))].filter(Boolean).sort();
             this.selectedSites = [...this.availableSites];
 
-            // Calculate default 1-year window
+            // Calculate default 1-year date window
             const months = [...new Set(this.rawData.map(d => d.Month))].filter(Boolean).sort();
             if (months.length > 0) {
                 const latestMonth = months[months.length - 1];
                 const [year, month] = latestMonth.split('-');
-
                 const startYear = parseInt(year, 10) - 1;
+
                 this.tempStart = `${startYear}-${month}`;
                 this.tempEnd = latestMonth;
             }
 
-            this.applyFilter();
+            this.appliedStart = this.tempStart;
+            this.appliedEnd = this.tempEnd;
+
+            // Build chart on next tick using element ref or ID
+            this.$nextTick(() => this.buildChart());
         },
 
-        // Search + Region filter for site checkboxes list
         filteredSiteOptions() {
             let sites = this.availableSites;
 
-            // Filter sites by selected regions (if data includes Region property)
             if (this.regions.length > 0 && this.selectedRegions.length < this.regions.length) {
                 const regionSites = new Set(
                     this.rawData
@@ -145,7 +156,6 @@ function siteChurnFilter(siteData) {
                 sites = sites.filter(s => regionSites.has(s));
             }
 
-            // Filter by search query
             if (this.siteSearch) {
                 const query = this.siteSearch.toLowerCase();
                 sites = sites.filter(s => s.toLowerCase().includes(query));
@@ -161,51 +171,61 @@ function siteChurnFilter(siteData) {
             } else {
                 this.selectedRegions.push(region);
             }
+            this.syncVisibilities();
         },
 
         toggleSite(site) {
             const idx = this.selectedSites.indexOf(site);
-            if (idx > -1) {
-                this.selectedSites.splice(idx, 1);
-            } else {
+            const isSelected = idx === -1;
+
+            if (isSelected) {
                 this.selectedSites.push(site);
+            } else {
+                this.selectedSites.splice(idx, 1);
             }
+
+            this.updateSingleVisibility(site, isSelected);
         },
 
         selectAllSites() {
-            // Select all sites currently visible in the search/region filter
             const visibleSites = this.filteredSiteOptions();
             this.selectedSites = [...new Set([...this.selectedSites, ...visibleSites])];
+            this.syncVisibilities();
         },
 
         clearAllSites() {
-            this.selectedSites = [];
+            const visibleSites = this.filteredSiteOptions();
+            this.selectedSites = this.selectedSites.filter(s => !visibleSites.includes(s));
+            this.syncVisibilities();
+        },
+
+        // Toggle a single site dataset via local closure reference
+        updateSingleVisibility(siteName, isVisible) {
+            if (!chartInstance) return;
+
+            const datasetIndex = chartInstance.data.datasets.findIndex(ds => ds.label === siteName);
+            if (datasetIndex !== -1) {
+                chartInstance.setDatasetVisibility(datasetIndex, isVisible);
+                chartInstance.update('none'); // Operates directly on native Chart.js instance
+            }
+        },
+
+        // Bulk sync dataset visibilities (used for Region toggles, Select All, Clear All)
+        syncVisibilities() {
+            if (!chartInstance) return;
+
+            chartInstance.data.datasets.forEach((ds, idx) => {
+                const isVisible = this.selectedSites.includes(ds.label);
+                chartInstance.setDatasetVisibility(idx, isVisible);
+            });
+
+            chartInstance.update('none');
         },
 
         applyFilter() {
-            let filtered = this.rawData;
-
-            // Region filter
-            if (this.regions.length > 0 && this.selectedRegions.length > 0) {
-                filtered = filtered.filter(d => !d.Region || this.selectedRegions.includes(d.Region));
-            }
-
-            // Site filter
-            if (this.selectedSites.length > 0) {
-                filtered = filtered.filter(d => this.selectedSites.includes(d.Site));
-            } else {
-                filtered = [];
-            }
-
-            // Date filters
-            if (this.tempStart) {
-                filtered = filtered.filter(d => d.Month >= this.tempStart);
-            }
-            if (this.tempEnd) {
-                filtered = filtered.filter(d => d.Month <= this.tempEnd);
-            }
-
-            this.renderChart(filtered);
+            this.appliedStart = this.tempStart;
+            this.appliedEnd = this.tempEnd;
+            this.updateChartData();
         },
 
         resetFilter() {
@@ -213,8 +233,8 @@ function siteChurnFilter(siteData) {
             if (months.length > 0) {
                 const latestMonth = months[months.length - 1];
                 const [year, month] = latestMonth.split('-');
-
                 const startYear = parseInt(year, 10) - 1;
+
                 this.tempStart = `${startYear}-${month}`;
                 this.tempEnd = latestMonth;
             } else {
@@ -222,40 +242,156 @@ function siteChurnFilter(siteData) {
                 this.tempEnd = '';
             }
 
-            this.applyFilter();
+            this.appliedStart = this.tempStart;
+            this.appliedEnd = this.tempEnd;
+            this.updateChartData();
         },
 
-        renderChart(data) {
-            if (this.chart) this.chart.destroy();
+        buildChart() {
+            const canvas = document.getElementById('siteChurnChart');
+            if (!canvas) return;
 
-            const months = [...new Set(data.map(d => d.Month))].filter(Boolean).sort();
+            let filtered = this.rawData;
+
+            if (this.appliedStart) {
+                filtered = filtered.filter(d => d.Month >= this.appliedStart);
+            }
+            if (this.appliedEnd) {
+                filtered = filtered.filter(d => d.Month <= this.appliedEnd);
+            }
+
+            const months = [...new Set(filtered.map(d => d.Month))].filter(Boolean).sort();
             const colors = ['#D98E2B', '#4A6C8C', '#3FA76B', '#C0453A', '#8A6D3B', '#6B8E9E', '#9B8557', '#5C7A99'];
 
-            const datasets = this.selectedSites.map((site, idx) => ({
+            // Pre-load all available sites into the dataset array
+            const datasets = this.availableSites.map((site, idx) => ({
                 label: site,
                 data: months.map(m => {
-                    const row = data.find(d => d.Site === site && d.Month === m);
+                    const row = filtered.find(d => d.Site === site && d.Month === m);
                     return row ? row['Monthly Churn Percentage'] : null;
                 }),
                 borderColor: colors[idx % colors.length],
+                backgroundColor: colors[idx % colors.length],
                 tension: 0.2,
                 spanGaps: false
             }));
 
-            this.chart = new Chart(document.getElementById('siteChurnChart'), {
+            // Instantiate Chart on local variable (bypasses Alpine Proxy)
+            chartInstance = new Chart(canvas.getContext('2d'), {
                 type: 'line',
                 data: { labels: months, datasets: datasets },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: {
+                                // Custom legend generator to remove strikethrough and dim unchecked items
+                                generateLabels: (chart) => {
+                                    const isDark = document.body.classList.contains('dark');
+                                    const defaultColor = isDark ? '#A7ACB4' : '#565D66';
+                                    const dimColor = isDark ? 'rgba(167, 172, 180, 0.35)' : 'rgba(86, 93, 102, 0.35)';
+
+                                    return chart.data.datasets.map((dataset, i) => {
+                                        const isVisible = chart.isDatasetVisible(i);
+
+                                        return {
+                                            text: dataset.label,
+                                            datasetIndex: i,
+                                            fillStyle: isVisible ? dataset.backgroundColor : 'transparent',
+                                            strokeStyle: isVisible ? dataset.borderColor : dimColor,
+                                            lineWidth: 2,
+                                            // 1. Disable strikethrough
+                                            textDecoration: 'none', 
+                                            hidden: !isVisible,
+                                            // 2. Dim the label text color when hidden
+                                            fontColor: isVisible ? defaultColor : dimColor
+                                        };
+                                    });
+                                }
+                            },
+                            // Maintain standard click-to-toggle functionality if clicked directly on the legend
+                            onClick: (e, legendItem, legend) => {
+                                const index = legendItem.datasetIndex;
+                                const ci = legend.chart;
+                                const isVisible = ci.isDatasetVisible(index);
+
+                                ci.setDatasetVisibility(index, !isVisible);
+
+                                // Sync Alpine state if site is toggled via chart legend directly
+                                const siteName = ci.data.datasets[index].label;
+                                const siteIdx = this.selectedSites.indexOf(siteName);
+                                if (isVisible && siteIdx > -1) {
+                                    this.selectedSites.splice(siteIdx, 1);
+                                } else if (!isVisible && siteIdx === -1) {
+                                    this.selectedSites.push(siteName);
+                                }
+
+                                ci.update('none');
+                            }
+                        }
+                    },
                     scales: {
-                        y: { 
+                        y: {
                             title: { display: true, text: 'Churn Percentage (%)' },
-                            ticks: { callback: v => v + '%' } 
+                            ticks: { callback: v => v + '%' }
                         }
                     }
                 }
             });
+
+            this.syncVisibilities();
+        },
+
+        updateTheme() {
+            if (!chartInstance) return;
+
+            const isDark = document.body.classList.contains('dark');
+            const gridColor = isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(10, 12, 16, 0.08)';
+            const textColor = isDark ? '#A7ACB4' : '#565D66';
+
+            // Update scale colors
+            if (chartInstance.options.scales.x) {
+                chartInstance.options.scales.x.ticks.color = textColor;
+            }
+
+            if (chartInstance.options.scales.y) {
+                chartInstance.options.scales.y.grid.color = gridColor;
+                chartInstance.options.scales.y.ticks.color = textColor;
+                if (chartInstance.options.scales.y.title) {
+                    chartInstance.options.scales.y.title.color = textColor;
+                }
+            }
+
+            // Re-render chart without animation stutter
+            chartInstance.update('none');
+        },
+
+        updateChartData() {
+            if (!chartInstance) return;
+
+            let filtered = this.rawData;
+
+            if (this.appliedStart) {
+                filtered = filtered.filter(d => d.Month >= this.appliedStart);
+            }
+            if (this.appliedEnd) {
+                filtered = filtered.filter(d => d.Month <= this.appliedEnd);
+            }
+
+            const months = [...new Set(filtered.map(d => d.Month))].filter(Boolean).sort();
+
+            chartInstance.data.labels = months;
+            chartInstance.data.datasets.forEach(ds => {
+                ds.data = months.map(m => {
+                    const row = filtered.find(d => d.Site === ds.label && d.Month === m);
+                    return row ? row['Monthly Churn Percentage'] : null;
+                });
+            });
+
+            chartInstance.update('none');
         }
     };
 }
