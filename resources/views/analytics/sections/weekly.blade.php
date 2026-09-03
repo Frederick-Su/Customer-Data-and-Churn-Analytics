@@ -1,6 +1,6 @@
 <div x-show="activeTab === 'weekly'" 
      x-cloak 
-     x-data="siteChurnFilter(@js($summaries['6_site_monthly_churn'] ?? []))"
+     x-data="siteChurnFilter(@js($summaries['6_site_monthly_churn'] ?? []), @js($summaries['6b_same_month_cancellations'] ?? []))"
      x-init="
         $nextTick(() => initChart());
         $watch('darkMode', () => updateTheme());
@@ -94,17 +94,25 @@
         <div class="rounded-sm bg-graphite-50 dark:bg-graphite-950/40 border border-graphite-200 dark:border-graphite-800 p-4">
             <canvas id="siteChurnChart" class="max-h-[450px] w-full"></canvas>
         </div>
+        <div class="rounded-sm bg-graphite-50 dark:bg-graphite-950/40 border border-graphite-200 dark:border-graphite-800 p-4 mt-6">
+            <h4 class="font-mono text-[11px] uppercase tracking-wider text-graphite-500 dark:text-graphite-400 mb-3">
+                Same Month Cancellation Rate (% of New Signups)
+            </h4>
+            <canvas id="sameMonthCancellationChart" class="max-h-[350px] w-full"></canvas>
+        </div>
         </div>
     </div>
 </div>
 
 <script>
-function siteChurnFilter(siteData) {
-    // Local closure variable — completely unproxied by Alpine's reactivity system
+function siteChurnFilter(siteData, sameMonthData) {
+    // Local closure variables — unproxied by Alpine
     let chartInstance = null;
+    let chartInstanceB = null;
 
     return {
         rawData: siteData || [],
+        rawSameMonthData: sameMonthData || [], // Store new dataset
         regions: [],
         selectedRegions: [],
         availableSites: [],
@@ -118,15 +126,12 @@ function siteChurnFilter(siteData) {
         initChart() {
             if (!this.rawData || this.rawData.length === 0) return;
 
-            // Extract unique regions
             this.regions = [...new Set(this.rawData.map(d => d.Region))].filter(Boolean).sort();
             this.selectedRegions = [...this.regions];
 
-            // Extract unique sites
             this.availableSites = [...new Set(this.rawData.map(d => d.Site))].filter(Boolean).sort();
             this.selectedSites = [...this.availableSites];
 
-            // Calculate default 1-year date window
             const months = [...new Set(this.rawData.map(d => d.Month))].filter(Boolean).sort();
             if (months.length > 0) {
                 const latestMonth = months[months.length - 1];
@@ -140,39 +145,29 @@ function siteChurnFilter(siteData) {
             this.appliedStart = this.tempStart;
             this.appliedEnd = this.tempEnd;
 
-            // Build chart on next tick using element ref or ID
             this.$nextTick(() => this.buildChart());
         },
 
         filteredSiteOptions() {
             let sites = this.availableSites;
-
             if (this.siteSearch) {
                 const query = this.siteSearch.toLowerCase();
                 sites = sites.filter(s => s.toLowerCase().includes(query));
             }
-
             return sites;
         },
 
         toggleRegion(region) {
             const idx = this.selectedRegions.indexOf(region);
             if (idx > -1) {
-                // Unchecking Region: remove this region's sites from selectedSites
                 this.selectedRegions.splice(idx, 1);
-                const regionSites = this.rawData
-                    .filter(d => d.Region === region)
-                    .map(d => d.Site);
+                const regionSites = this.rawData.filter(d => d.Region === region).map(d => d.Site);
                 this.selectedSites = this.selectedSites.filter(s => !regionSites.includes(s));
             } else {
-                // Checking Region: add this region's sites back to selectedSites
                 this.selectedRegions.push(region);
-                const regionSites = this.rawData
-                    .filter(d => d.Region === region)
-                    .map(d => d.Site);
+                const regionSites = this.rawData.filter(d => d.Region === region).map(d => d.Site);
                 this.selectedSites = [...new Set([...this.selectedSites, ...regionSites])];
             }
-            
             this.syncVisibilities();
         },
 
@@ -201,27 +196,26 @@ function siteChurnFilter(siteData) {
             this.syncVisibilities();
         },
 
-        // Toggle a single site dataset via local closure reference
         updateSingleVisibility(siteName, isVisible) {
-            if (!chartInstance) return;
-
-            const datasetIndex = chartInstance.data.datasets.findIndex(ds => ds.label === siteName);
-            if (datasetIndex !== -1) {
-                chartInstance.setDatasetVisibility(datasetIndex, isVisible);
-                chartInstance.update(); // Operates directly on native Chart.js instance
-            }
+            [chartInstance, chartInstanceB].forEach(ci => {
+                if (!ci) return;
+                const datasetIndex = ci.data.datasets.findIndex(ds => ds.label === siteName);
+                if (datasetIndex !== -1) {
+                    ci.setDatasetVisibility(datasetIndex, isVisible);
+                    ci.update();
+                }
+            });
         },
 
-        // Bulk sync dataset visibilities (used for Region toggles, Select All, Clear All)
         syncVisibilities() {
-            if (!chartInstance) return;
-
-            chartInstance.data.datasets.forEach((ds, idx) => {
-                const isVisible = this.selectedSites.includes(ds.label);
-                chartInstance.setDatasetVisibility(idx, isVisible);
+            [chartInstance, chartInstanceB].forEach(ci => {
+                if (!ci) return;
+                ci.data.datasets.forEach((ds, idx) => {
+                    const isVisible = this.selectedSites.includes(ds.label);
+                    ci.setDatasetVisibility(idx, isVisible);
+                });
+                ci.update();
             });
-
-            chartInstance.update();
         },
 
         applyFilter() {
@@ -250,26 +244,30 @@ function siteChurnFilter(siteData) {
         },
 
         buildChart() {
-            const canvas = document.getElementById('siteChurnChart');
-            if (!canvas) return;
+            const canvasA = document.getElementById('siteChurnChart');
+            const canvasB = document.getElementById('sameMonthCancellationChart');
+            if (!canvasA || !canvasB) return;
 
-            let filtered = this.rawData;
+            let filteredA = this.rawData;
+            let filteredB = this.rawSameMonthData;
 
             if (this.appliedStart) {
-                filtered = filtered.filter(d => d.Month >= this.appliedStart);
+                filteredA = filteredA.filter(d => d.Month >= this.appliedStart);
+                filteredB = filteredB.filter(d => d.Month >= this.appliedStart);
             }
             if (this.appliedEnd) {
-                filtered = filtered.filter(d => d.Month <= this.appliedEnd);
+                filteredA = filteredA.filter(d => d.Month <= this.appliedEnd);
+                filteredB = filteredB.filter(d => d.Month <= this.appliedEnd);
             }
 
-            const months = [...new Set(filtered.map(d => d.Month))].filter(Boolean).sort();
+            const months = [...new Set(filteredA.map(d => d.Month))].filter(Boolean).sort();
             const colors = ['#D98E2B', '#4A6C8C', '#3FA76B', '#C0453A', '#8A6D3B', '#6B8E9E', '#9B8557', '#5C7A99'];
 
-            // Pre-load all available sites into the dataset array
-            const datasets = this.availableSites.map((site, idx) => ({
+            // Build Datasets for Chart A (Main Monthly Churn Rate)
+            const datasetsA = this.availableSites.map((site, idx) => ({
                 label: site,
                 data: months.map(m => {
-                    const row = filtered.find(d => d.Site === site && d.Month === m);
+                    const row = filteredA.find(d => d.Site === site && d.Month === m);
                     return row ? row['Monthly Churn Percentage'] : null;
                 }),
                 borderColor: colors[idx % colors.length],
@@ -278,121 +276,142 @@ function siteChurnFilter(siteData) {
                 spanGaps: false
             }));
 
-            // Instantiate Chart on local variable (bypasses Alpine Proxy)
-            chartInstance = new Chart(canvas.getContext('2d'), {
+            // Build Datasets for Chart B (Same-Month Cancellation Rate)
+            const datasetsB = this.availableSites.map((site, idx) => ({
+                label: site,
+                data: months.map(m => {
+                    const row = filteredB.find(d => d.Site === site && d.Month === m);
+                    return row ? row['Same Month Cancellation Rate'] : null;
+                }),
+                borderColor: colors[idx % colors.length],
+                backgroundColor: colors[idx % colors.length],
+                tension: 0.2,
+                spanGaps: false
+            }));
+
+            // Instantiate Chart A
+            chartInstance = new Chart(canvasA.getContext('2d'), {
                 type: 'line',
-                data: { labels: months, datasets: datasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: true,
-                            labels: {
-                                // Custom legend generator to remove strikethrough and dim unchecked items
-                                generateLabels: (chart) => {
-                                    const isDark = document.body.classList.contains('dark');
-                                    const defaultColor = isDark ? '#A7ACB4' : '#565D66';
-                                    const dimColor = isDark ? 'rgba(167, 172, 180, 0.35)' : 'rgba(86, 93, 102, 0.35)';
+                data: { labels: months, datasets: datasetsA },
+                options: this.getCommonOptions('Churn Percentage (%)')
+            });
 
-                                    return chart.data.datasets.map((dataset, i) => {
-                                        const isVisible = chart.isDatasetVisible(i);
-
-                                        return {
-                                            text: dataset.label,
-                                            datasetIndex: i,
-                                            fillStyle: isVisible ? dataset.backgroundColor : 'transparent',
-                                            strokeStyle: isVisible ? dataset.borderColor : dimColor,
-                                            lineWidth: 2,
-                                            // 1. Disable strikethrough
-                                            textDecoration: 'none', 
-                                            hidden: !isVisible,
-                                            // 2. Dim the label text color when hidden
-                                            fontColor: isVisible ? defaultColor : dimColor
-                                        };
-                                    });
-                                }
-                            },
-                            // Maintain standard click-to-toggle functionality if clicked directly on the legend
-                            onClick: (e, legendItem, legend) => {
-                                const index = legendItem.datasetIndex;
-                                const ci = legend.chart;
-                                const isVisible = ci.isDatasetVisible(index);
-
-                                ci.setDatasetVisibility(index, !isVisible);
-
-                                // Sync Alpine state if site is toggled via chart legend directly
-                                const siteName = ci.data.datasets[index].label;
-                                const siteIdx = this.selectedSites.indexOf(siteName);
-                                if (isVisible && siteIdx > -1) {
-                                    this.selectedSites.splice(siteIdx, 1);
-                                } else if (!isVisible && siteIdx === -1) {
-                                    this.selectedSites.push(siteName);
-                                }
-
-                                ci.update();
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            title: { display: true, text: 'Churn Percentage (%)' },
-                            ticks: { callback: v => v + '%' }
-                        }
-                    }
-                }
+            // Instantiate Chart B (Bottom Chart)
+            chartInstanceB = new Chart(canvasB.getContext('2d'), {
+                type: 'line',
+                data: { labels: months, datasets: datasetsB },
+                options: this.getCommonOptions('Cancellation Rate (%)')
             });
 
             this.syncVisibilities();
         },
 
-        updateTheme() {
-            if (!chartInstance) return;
+        getCommonOptions(yAxisLabel) {
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: {
+                            generateLabels: (chart) => {
+                                const isDark = document.body.classList.contains('dark');
+                                const defaultColor = isDark ? '#A7ACB4' : '#565D66';
+                                const dimColor = isDark ? 'rgba(167, 172, 180, 0.35)' : 'rgba(86, 93, 102, 0.35)';
 
-            const isDark = document.body.classList.contains('dark');
-            const gridColor = isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(10, 12, 16, 0.08)';
-            const textColor = isDark ? '#A7ACB4' : '#565D66';
+                                return chart.data.datasets.map((dataset, i) => {
+                                    const isVisible = chart.isDatasetVisible(i);
+                                    return {
+                                        text: dataset.label,
+                                        datasetIndex: i,
+                                        fillStyle: isVisible ? dataset.backgroundColor : 'transparent',
+                                        strokeStyle: isVisible ? dataset.borderColor : dimColor,
+                                        lineWidth: 2,
+                                        textDecoration: 'none',
+                                        hidden: !isVisible,
+                                        fontColor: isVisible ? defaultColor : dimColor
+                                    };
+                                });
+                            }
+                        },
+                        onClick: (e, legendItem, legend) => {
+                            const index = legendItem.datasetIndex;
+                            const siteName = legend.chart.data.datasets[index].label;
+                            const siteIdx = this.selectedSites.indexOf(siteName);
+                            const isVisible = legend.chart.isDatasetVisible(index);
 
-            // Update scale colors
-            if (chartInstance.options.scales.x) {
-                chartInstance.options.scales.x.ticks.color = textColor;
-            }
+                            if (isVisible && siteIdx > -1) {
+                                this.selectedSites.splice(siteIdx, 1);
+                            } else if (!isVisible && siteIdx === -1) {
+                                this.selectedSites.push(siteName);
+                            }
 
-            if (chartInstance.options.scales.y) {
-                chartInstance.options.scales.y.grid.color = gridColor;
-                chartInstance.options.scales.y.ticks.color = textColor;
-                if (chartInstance.options.scales.y.title) {
-                    chartInstance.options.scales.y.title.color = textColor;
+                            this.syncVisibilities();
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        title: { display: true, text: yAxisLabel },
+                        ticks: { callback: v => v + '%' }
+                    }
                 }
-            }
+            };
+        },
 
-            // Re-render chart without animation stutter
-            chartInstance.update();
+        updateTheme() {
+            [chartInstance, chartInstanceB].forEach(ci => {
+                if (!ci) return;
+                const isDark = document.body.classList.contains('dark');
+                const gridColor = isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(10, 12, 16, 0.08)';
+                const textColor = isDark ? '#A7ACB4' : '#565D66';
+
+                if (ci.options.scales.x) ci.options.scales.x.ticks.color = textColor;
+                if (ci.options.scales.y) {
+                    ci.options.scales.y.grid.color = gridColor;
+                    ci.options.scales.y.ticks.color = textColor;
+                    if (ci.options.scales.y.title) ci.options.scales.y.title.color = textColor;
+                }
+                ci.update();
+            });
         },
 
         updateChartData() {
-            if (!chartInstance) return;
-
-            let filtered = this.rawData;
+            let filteredA = this.rawData;
+            let filteredB = this.rawSameMonthData;
 
             if (this.appliedStart) {
-                filtered = filtered.filter(d => d.Month >= this.appliedStart);
+                filteredA = filteredA.filter(d => d.Month >= this.appliedStart);
+                filteredB = filteredB.filter(d => d.Month >= this.appliedStart);
             }
             if (this.appliedEnd) {
-                filtered = filtered.filter(d => d.Month <= this.appliedEnd);
+                filteredA = filteredA.filter(d => d.Month <= this.appliedEnd);
+                filteredB = filteredB.filter(d => d.Month <= this.appliedEnd);
             }
 
-            const months = [...new Set(filtered.map(d => d.Month))].filter(Boolean).sort();
+            const months = [...new Set(filteredA.map(d => d.Month))].filter(Boolean).sort();
 
-            chartInstance.data.labels = months;
-            chartInstance.data.datasets.forEach(ds => {
-                ds.data = months.map(m => {
-                    const row = filtered.find(d => d.Site === ds.label && d.Month === m);
-                    return row ? row['Monthly Churn Percentage'] : null;
+            if (chartInstance) {
+                chartInstance.data.labels = months;
+                chartInstance.data.datasets.forEach(ds => {
+                    ds.data = months.map(m => {
+                        const row = filteredA.find(d => d.Site === ds.label && d.Month === m);
+                        return row ? row['Monthly Churn Percentage'] : null;
+                    });
                 });
-            });
+                chartInstance.update();
+            }
 
-            chartInstance.update();
+            if (chartInstanceB) {
+                chartInstanceB.data.labels = months;
+                chartInstanceB.data.datasets.forEach(ds => {
+                    ds.data = months.map(m => {
+                        const row = filteredB.find(d => d.Site === ds.label && d.Month === m);
+                        return row ? row['Same Month Cancellation Rate'] : null;
+                    });
+                });
+                chartInstanceB.update();
+            }
         }
     };
 }

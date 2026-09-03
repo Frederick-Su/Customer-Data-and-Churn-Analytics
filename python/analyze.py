@@ -336,28 +336,22 @@ churn_export['Month'] = churn_export['Month_Period'].dt.strftime('%Y-%m')
 with open(os.path.join(output_dir, "5_churn_percentage.json"), "w") as f:
     json.dump(churn_export[['Region', 'Month', 'Monthly Churn Percentage']].to_dict(orient='records'), f, indent=4)
 
-# Graph 6 (monthly_site_churn.png)
+# Graph 6 (monthly_site_churn)
 # Generate monthly periods covering the dataset
 months = pd.period_range(
     start=df['Created'].min().to_period('M'),
-    end=max(
-        df['Expired'].max() if df['Expired'].notna().any() else df['Created'].max(),
-        df['Created'].max()
-    ).to_period('M'),
+    end=eval_date.to_period('M') - 1,
     freq='M'
 )
 
 results = []
 
-# Calculate active customers at the start of each month
+# Calculate Active Customers at the start of each month
 for site in df['Site'].dropna().unique():
-
     site_df = df[df['Site'] == site]
 
     for month in months:
-
         month_start = month.start_time
-        month_end = month.end_time
 
         active = (
             (site_df['Created'] <= month_start) &
@@ -369,54 +363,43 @@ for site in df['Site'].dropna().unique():
 
         results.append({
             'Site': site,
-            'Month': month.start_time,
+            'Month_Period': month,
             'Active Customers': active
         })
 
-
 active_df = pd.DataFrame(results)
 
+# Calculate Churned Customers
+df_churn_site = df[df['Expired'].notna()].copy()
+df_churn_site['Created_Period'] = df_churn_site['Created'].dt.to_period('M')
+df_churn_site['Expired_Period'] = df_churn_site['Expired'].dt.to_period('M')
 
-# Customers who churned
-df_churn = df[df['Expired'].notna()].copy()
-df_churn['Month_Period'] = df_churn['Expired'].dt.to_period('M')
+# EXCLUDE same-month churners: Created month must NOT equal Expired month
+df_retained_churn = df_churn_site[df_churn_site['Created_Period'] != df_churn_site['Expired_Period']]
 
-active_df['Month_Period'] = active_df['Month'].dt.to_period('M')
+# Group churned counts by Site and Expired Month
+churned_customers_by_site_month = (
+    df_retained_churn.groupby(['Site', 'Expired_Period']).size()
+)
 
-
-# Active customers by site and month
+# Active customers by Site and Month
 active_customers_by_site_month = (
     active_df.groupby(['Site', 'Month_Period'])['Active Customers'].sum()
 )
 
-
-# Churned customers by site and month
-churned_customers_by_site_month = (
-    df_churn.groupby(['Site', 'Month_Period']).size()
-)
-
-
-# Combine
+# Combine Metrics
 site_churn_metrics_df = pd.DataFrame({
     'Churned Customers': churned_customers_by_site_month,
     'Active Customers': active_customers_by_site_month
 }).unstack(fill_value=0).stack()
 
+site_churn_metrics_df['Churned Customers'] = site_churn_metrics_df['Churned Customers'].fillna(0)
+site_churn_metrics_df['Active Customers'] = site_churn_metrics_df['Active Customers'].fillna(0)
 
-site_churn_metrics_df['Churned Customers'] = (
-    site_churn_metrics_df['Churned Customers'].fillna(0)
-)
-
-site_churn_metrics_df['Active Customers'] = (
-    site_churn_metrics_df['Active Customers'].fillna(0)
-)
-
-
-# Remove weeks with no active customers
+# Remove months with no active baseline customers
 site_churn_metrics_df = site_churn_metrics_df[
     site_churn_metrics_df['Active Customers'] > 0
 ]
-
 
 # Calculate monthly churn percentage
 site_churn_metrics_df['Monthly Churn Percentage'] = (
@@ -425,28 +408,78 @@ site_churn_metrics_df['Monthly Churn Percentage'] = (
     site_churn_metrics_df['Active Customers']
 ) * 100
 
-# End Month: Month before the evaluation date
-latest_data_month = eval_date.to_period('M') - 1
-
-week_months = (
-    site_churn_metrics_df
-    .index
-    .get_level_values('Month_Period')
-)
-
-site_churn_metrics_df = site_churn_metrics_df[
-    week_months <= latest_data_month
-]
-
-# Map Site to Region from the dataset
+# Map Site to Region from the original dataset
 site_region_map = df.dropna(subset=['Site', 'Region']).drop_duplicates('Site').set_index('Site')['Region'].to_dict()
 
+site_churn_metrics_df.index.names = ['Site', 'Month_Period']
 site_export = site_churn_metrics_df.reset_index()
 site_export['Month'] = site_export['Month_Period'].dt.strftime('%Y-%m')
 site_export['Region'] = site_export['Site'].map(site_region_map)
 
+# Export JSON for the weekly.blade.php / site churn dashboard tab
 with open(os.path.join(output_dir, "6_site_monthly_churn.json"), "w") as f:
-    json.dump(site_export[['Region', 'Site', 'Month', 'Monthly Churn Percentage', 'Active Customers', 'Churned Customers']].to_dict(orient='records'), f, indent=4)
+    json.dump(
+        site_export[['Region', 'Site', 'Month', 'Monthly Churn Percentage', 'Active Customers', 'Churned Customers']].to_dict(orient='records'),
+        f,
+        indent=4
+    )
+
+# ============================================================
+# GRAPH 6B - Same-Month Cancellations (Early Churn)
+# ============================================================
+
+# Filter for customers who were Created AND Expired in the same calendar month
+df_same_month = df[df['Expired'].notna()].copy()
+df_same_month['Created_Period'] = df_same_month['Created'].dt.to_period('M')
+df_same_month['Expired_Period'] = df_same_month['Expired'].dt.to_period('M')
+
+# Keep only same-month drop-offs
+df_same_month = df_same_month[df_same_month['Created_Period'] == df_same_month['Expired_Period']]
+
+# Total new signups per site per month (denominator)
+df['Created_Period'] = df['Created'].dt.to_period('M')
+new_signups_by_site_month = df.groupby(['Site', 'Created_Period']).size()
+
+# Same-month cancellations per site per month (numerator)
+same_month_cancels_by_site_month = df_same_month.groupby(['Site', 'Expired_Period']).size()
+
+# Combine into a single DataFrame
+same_month_metrics_df = pd.DataFrame({
+    'Same Month Cancellations': same_month_cancels_by_site_month,
+    'New Signups': new_signups_by_site_month
+}).unstack(fill_value=0).stack()
+
+same_month_metrics_df['Same Month Cancellations'] = same_month_metrics_df['Same Month Cancellations'].fillna(0)
+same_month_metrics_df['New Signups'] = same_month_metrics_df['New Signups'].fillna(0)
+
+# Filter out site-months with zero new signups
+same_month_metrics_df = same_month_metrics_df[same_month_metrics_df['New Signups'] > 0]
+
+# Calculate Same-Month Cancellation Rate
+same_month_metrics_df['Same Month Cancellation Rate'] = (
+    same_month_metrics_df['Same Month Cancellations'] / same_month_metrics_df['New Signups']
+) * 100
+
+# Fix index names and prepare for export
+same_month_metrics_df.index.names = ['Site', 'Month_Period']
+same_month_export = same_month_metrics_df.reset_index()
+
+same_month_export['Month'] = same_month_export['Month_Period'].dt.strftime('%Y-%m')
+same_month_export['Region'] = same_month_export['Site'].map(site_region_map)
+
+# Filter up to latest_data_month
+same_month_export = same_month_export[same_month_export['Month_Period'] <= (eval_date.to_period('M') - 1)]
+
+# Export JSON
+with open(os.path.join(output_dir, "6b_same_month_cancellations.json"), "w") as f:
+    json.dump(
+        same_month_export[[
+            'Region', 'Site', 'Month', 
+            'Same Month Cancellation Rate', 'Same Month Cancellations', 'New Signups'
+        ]].to_dict(orient='records'),
+        f,
+        indent=4
+    )
 
 # ============================================================
 # GRAPH 7 - Latest Renewal Value of Currently Active Customers
