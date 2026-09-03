@@ -147,15 +147,6 @@ function siteChurnFilter(siteData) {
         filteredSiteOptions() {
             let sites = this.availableSites;
 
-            if (this.regions.length > 0 && this.selectedRegions.length < this.regions.length) {
-                const regionSites = new Set(
-                    this.rawData
-                        .filter(d => this.selectedRegions.includes(d.Region))
-                        .map(d => d.Site)
-                );
-                sites = sites.filter(s => regionSites.has(s));
-            }
-
             if (this.siteSearch) {
                 const query = this.siteSearch.toLowerCase();
                 sites = sites.filter(s => s.toLowerCase().includes(query));
@@ -167,10 +158,21 @@ function siteChurnFilter(siteData) {
         toggleRegion(region) {
             const idx = this.selectedRegions.indexOf(region);
             if (idx > -1) {
+                // Unchecking Region: remove this region's sites from selectedSites
                 this.selectedRegions.splice(idx, 1);
+                const regionSites = this.rawData
+                    .filter(d => d.Region === region)
+                    .map(d => d.Site);
+                this.selectedSites = this.selectedSites.filter(s => !regionSites.includes(s));
             } else {
+                // Checking Region: add this region's sites back to selectedSites
                 this.selectedRegions.push(region);
+                const regionSites = this.rawData
+                    .filter(d => d.Region === region)
+                    .map(d => d.Site);
+                this.selectedSites = [...new Set([...this.selectedSites, ...regionSites])];
             }
+            
             this.syncVisibilities();
         },
 
@@ -206,7 +208,7 @@ function siteChurnFilter(siteData) {
             const datasetIndex = chartInstance.data.datasets.findIndex(ds => ds.label === siteName);
             if (datasetIndex !== -1) {
                 chartInstance.setDatasetVisibility(datasetIndex, isVisible);
-                chartInstance.update('none'); // Operates directly on native Chart.js instance
+                chartInstance.update(); // Operates directly on native Chart.js instance
             }
         },
 
@@ -219,7 +221,7 @@ function siteChurnFilter(siteData) {
                 chartInstance.setDatasetVisibility(idx, isVisible);
             });
 
-            chartInstance.update('none');
+            chartInstance.update();
         },
 
         applyFilter() {
@@ -283,7 +285,6 @@ function siteChurnFilter(siteData) {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    animation: false,
                     plugins: {
                         legend: {
                             display: true,
@@ -329,7 +330,7 @@ function siteChurnFilter(siteData) {
                                     this.selectedSites.push(siteName);
                                 }
 
-                                ci.update('none');
+                                ci.update();
                             }
                         }
                     },
@@ -366,7 +367,7 @@ function siteChurnFilter(siteData) {
             }
 
             // Re-render chart without animation stutter
-            chartInstance.update('none');
+            chartInstance.update();
         },
 
         updateChartData() {
@@ -391,7 +392,7 @@ function siteChurnFilter(siteData) {
                 });
             });
 
-            chartInstance.update('none');
+            chartInstance.update();
         }
     };
 }
