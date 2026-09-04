@@ -92,6 +92,9 @@
         </form>
 
         <div class="rounded-sm bg-graphite-50 dark:bg-graphite-950/40 border border-graphite-200 dark:border-graphite-800 p-4">
+            <h4 class="font-mono text-[11px] uppercase tracking-wider text-graphite-500 dark:text-graphite-400 mb-3">
+                % of Active Customers at Start of Month that Churn
+            </h4>
             <canvas id="siteChurnChart" class="max-h-[450px] w-full"></canvas>
         </div>
         <div class="rounded-sm bg-graphite-50 dark:bg-graphite-950/40 border border-graphite-200 dark:border-graphite-800 p-4 mt-6">
@@ -268,7 +271,12 @@ function siteChurnFilter(siteData, sameMonthData) {
                 label: site,
                 data: months.map(m => {
                     const row = filteredA.find(d => d.Site === site && d.Month === m);
-                    return row ? row['Monthly Churn Percentage'] : null;
+                    return {
+                        x: m,
+                        y: row ? row['Monthly Churn Percentage'] : null,
+                        churned: row ? (row['Churned'] ?? row['Churned Customers'] ?? 0) : 0,
+                        active: row ? (row['Active'] ?? row['Active Customers'] ?? 0) : 0
+                    };
                 }),
                 borderColor: colors[idx % colors.length],
                 backgroundColor: colors[idx % colors.length],
@@ -281,7 +289,12 @@ function siteChurnFilter(siteData, sameMonthData) {
                 label: site,
                 data: months.map(m => {
                     const row = filteredB.find(d => d.Site === site && d.Month === m);
-                    return row ? row['Same Month Cancellation Rate'] : null;
+                    return {
+                        x: m,
+                        y: row ? row['Same Month Cancellation Rate'] : null,
+                        cancellations: row ? (row['Same Month Cancellations'] ?? 0) : 0,
+                        signups: row ? (row['New Signups'] ?? 0) : 0
+                    };
                 }),
                 borderColor: colors[idx % colors.length],
                 backgroundColor: colors[idx % colors.length],
@@ -311,6 +324,32 @@ function siteChurnFilter(siteData, sameMonthData) {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const raw = context.raw;
+                                const label = context.dataset.label || '';
+                                
+                                if (!raw || raw.y === null || raw.y === undefined) {
+                                    return `${label}: N/A`;
+                                }
+
+                                const rate = Number(raw.y).toFixed(2);
+
+                                // Chart A extra counts
+                                if (raw.churned !== undefined && raw.active !== undefined) {
+                                    return `${label}: ${rate}% (${raw.churned} churned / ${raw.active} active)`;
+                                }
+
+                                // Chart B extra counts
+                                if (raw.cancellations !== undefined && raw.signups !== undefined) {
+                                    return `${label}: ${rate}% (${raw.cancellations} cancels / ${raw.signups} signups)`;
+                                }
+
+                                return `${label}: ${rate}%`;
+                            }
+                        }
+                    },
                     legend: {
                         display: true,
                         labels: {
@@ -396,7 +435,12 @@ function siteChurnFilter(siteData, sameMonthData) {
                 chartInstance.data.datasets.forEach(ds => {
                     ds.data = months.map(m => {
                         const row = filteredA.find(d => d.Site === ds.label && d.Month === m);
-                        return row ? row['Monthly Churn Percentage'] : null;
+                        return {
+                            x: m,
+                            y: row ? row['Monthly Churn Percentage'] : null,
+                            churned: row ? (row['Churned'] ?? row['Churned Customers'] ?? 0) : 0,
+                            active: row ? (row['Active'] ?? row['Active Customers'] ?? 0) : 0
+                        };
                     });
                 });
                 chartInstance.update();
@@ -407,7 +451,12 @@ function siteChurnFilter(siteData, sameMonthData) {
                 chartInstanceB.data.datasets.forEach(ds => {
                     ds.data = months.map(m => {
                         const row = filteredB.find(d => d.Site === ds.label && d.Month === m);
-                        return row ? row['Same Month Cancellation Rate'] : null;
+                        return {
+                            x: m,
+                            y: row ? row['Same Month Cancellation Rate'] : null,
+                            cancellations: row ? (row['Same Month Cancellations'] ?? 0) : 0,
+                            signups: row ? (row['New Signups'] ?? 0) : 0
+                        };
                     });
                 });
                 chartInstanceB.update();
