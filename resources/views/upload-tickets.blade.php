@@ -930,6 +930,133 @@
             }
         };
     }
+
+    // 7. DATE FILTERED BAR CHART (No Checkboxes)
+    function dateFilteredBarChart(rawData, categoryKey, type = 'bar', horizontal = true) {
+        let chartInstance = null;
+        return {
+            rawData: rawData || [],
+            tempStart: '',
+            tempEnd: '',
+
+            init() {
+                if (this.rawData.length === 0) return;
+                this.resetDateFilter();
+                this.$nextTick(() => this.buildChart());
+                this.$watch('darkMode', () => applyThemeToInstance(chartInstance, horizontal));
+            },
+
+            applyDateFilter() {
+                this.updateChart();
+            },
+
+            resetDateFilter() {
+                const dates = this.rawData.map(d => d.Date).filter(Boolean).sort();
+                if (dates.length > 0) {
+                    this.tempStart = dates[0];
+                    this.tempEnd = dates[dates.length - 1];
+                }
+                this.updateChart();
+            },
+
+            getAggregatedData() {
+                const filtered = this.rawData.filter(d => {
+                    const startMatch = !this.tempStart || !d.Date || d.Date >= this.tempStart;
+                    const endMatch = !this.tempEnd || !d.Date || d.Date <= this.tempEnd;
+                    return startMatch && endMatch;
+                });
+
+                const results = {};
+                filtered.forEach(d => {
+                    const label = d[categoryKey];
+                    if (label) {
+                        results[label] = (results[label] || 0) + 1;
+                    }
+                });
+
+                const sorted = Object.entries(results).sort((a, b) => b[1] - a[1]);
+                return {
+                    labels: sorted.map(item => item[0]),
+                    values: sorted.map(item => item[1])
+                };
+            },
+
+            // Add dynamic height calculation inside updateChart() / buildChart()
+            updateChartHeight(labelCount) {
+                const canvas = this.$refs.canvas;
+                if (!canvas || !canvas.parentElement) return;
+                
+                // Allocate ~28px per bar, min-height 350px
+                const calculatedHeight = Math.max(350, labelCount * 28);
+                canvas.parentElement.style.height = `${calculatedHeight}px`;
+            },
+
+            buildChart() {
+                const canvas = this.$refs.canvas;
+                if (!canvas) return;
+
+                const agg = this.getAggregatedData();
+                this.updateChartHeight(agg.labels.length);
+                const theme = getChartTheme();
+
+                chartInstance = new Chart(canvas.getContext('2d'), {
+                    type: type,
+                    data: {
+                        labels: agg.labels,
+                        datasets: [{
+                            data: agg.values,
+                            backgroundColor: '#D98E2B',
+                            borderColor: '#D98E2B',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        indexAxis: horizontal ? 'y' : 'x',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'y',
+                            intersect: false
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    // Ensures the title in the tooltip shows the full label string
+                                    title: function(context) {
+                                        return context[0].label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: { grid: { color: horizontal ? theme.gridColor : 'transparent' }, ticks: { color: theme.textColor, font: theme.fontSettings } },
+                            y: { grid: { color: !horizontal ? theme.gridColor : 'transparent' }, 
+                                ticks: {
+                                    color: theme.textColor,
+                                    font: theme.fontSettings,
+                                    callback: function(value) {
+                                        const label = this.getLabelForValue(value);
+                                        // Truncate display label to 45 chars + '...' if too long
+                                        return label.length > 45 ? label.slice(0, 45) + '…' : label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+
+            updateChart() {
+                if (!chartInstance) return;
+                const agg = this.getAggregatedData();
+                this.updateChartHeight(agg.labels.length);
+                chartInstance.data.labels = agg.labels;
+                chartInstance.data.datasets[0].data = agg.values;
+                chartInstance.update();
+            }
+        };
+    }
 </script>
 </body>
 </html>

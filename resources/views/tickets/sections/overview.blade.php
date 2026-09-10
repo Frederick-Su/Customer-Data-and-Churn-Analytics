@@ -83,21 +83,8 @@
     </div>
     @endif
 
-    @if(isset($summaries['2_tickets_by_complaint']))
-    <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 rounded-sm">
-        <div class="px-5 py-3 border-b border-graphite-200 dark:border-graphite-800">
-            <h3 class="op-eyebrow text-graphite-500 dark:text-graphite-400">Tickets by Complaint Type</h3>
-        </div>
-        <div class="p-5" x-data="standardTicketChart(@js($summaries['2_tickets_by_complaint']), 'Type Complaint', 'Ticket_Count', 'bar', true)">
-            <div class="relative w-full" style="height: 350px;">
-                <canvas x-ref="canvas"></canvas>
-            </div>
-        </div>
-    </div>
-    @endif
-
     @if(isset($summaries['7_complaint_proportion']))
-    <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 rounded-sm lg:col-span-2">
+    <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 rounded-sm">
         <div class="px-5 py-3 border-b border-graphite-200 dark:border-graphite-800">
             <h3 class="op-eyebrow text-graphite-500 dark:text-graphite-400">Proportion of Tickets by Complaint</h3>
         </div>
@@ -123,6 +110,40 @@
 
             <div class="relative w-full flex justify-center" style="height: 380px;">
                 <canvas x-ref="canvas"></canvas>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    @if(isset($summaries['10_tickets_by_complaint_category']))
+    <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 rounded-sm lg:col-span-2">
+        <div class="px-5 py-3 border-b border-graphite-200 dark:border-graphite-800">
+            <h3 class="op-eyebrow text-graphite-500 dark:text-graphite-400">Tickets by Complaint Category</h3>
+        </div>
+        <div class="p-5" x-data="dateFilteredBarChart(@js($summaries['10_tickets_by_complaint_category']), 'Complaint Category', 'bar', true)">
+            
+            <!-- Date Period Filter -->
+            <form @submit.prevent="applyDateFilter()" class="flex flex-wrap items-end gap-3 mb-5 bg-graphite-50 dark:bg-graphite-950/40 p-3 rounded-sm border border-graphite-200 dark:border-graphite-800">
+                <div>
+                    <label class="block font-mono text-[10px] uppercase tracking-wider text-graphite-400 dark:text-graphite-500 mb-1">Start Month</label>
+                    <input type="month" x-model="tempStart" @click="$el.showPicker && $el.showPicker()" class="cursor-pointer font-mono text-xs bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-700 rounded-sm px-2.5 py-1 text-graphite-800 dark:text-graphite-100 focus:outline-none focus:ring-1 focus:ring-signal-500 dark:[color-scheme:dark]">
+                </div>
+                <div>
+                    <label class="block font-mono text-[10px] uppercase tracking-wider text-graphite-400 dark:text-graphite-500 mb-1">End Month</label>
+                    <input type="month" x-model="tempEnd" @click="$el.showPicker && $el.showPicker()" class="cursor-pointer font-mono text-xs bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-700 rounded-sm px-2.5 py-1 text-graphite-800 dark:text-graphite-100 focus:outline-none focus:ring-1 focus:ring-signal-500 dark:[color-scheme:dark]">
+                </div>
+                <button type="submit" class="bg-signal-600 hover:bg-signal-700 dark:bg-signal-500 dark:hover:bg-signal-400 text-paper-50 dark:text-graphite-950 font-mono font-semibold uppercase tracking-wider px-3 py-1 rounded-sm transition-colors text-[11px]">
+                    Apply
+                </button>
+                <button type="button" @click="resetDateFilter()" class="font-mono text-[10px] uppercase tracking-wider text-graphite-500 dark:text-graphite-400 hover:text-signal-600 hover:underline py-1">
+                    Reset
+                </button>
+            </form>
+
+            <div class="max-h-[600px] overflow-y-auto pr-2">
+                <div class="relative w-full" style="height: 350px;">
+                    <canvas x-ref="canvas"></canvas>
+                </div>
             </div>
         </div>
     </div>

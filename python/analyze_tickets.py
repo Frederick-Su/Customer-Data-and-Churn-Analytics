@@ -438,3 +438,16 @@ if not df_heatmap.empty:
 
     with open(os.path.join(output_dir, "9_complaint_heatmap.json"), "w") as f:
         json.dump(ct.to_dict(orient='index'), f, indent=4)
+
+# ============================================================
+# 10. TICKETS BY COMPLAINT CATEGORY
+# ============================================================
+df_category = df.dropna(subset=['Complaint Category'])
+
+category_export = pd.DataFrame({
+    'Complaint Category': df_category['Complaint Category'].astype(str),
+    'Date': df_category['Creation Time'].dt.strftime('%Y-%m')
+})
+
+with open(os.path.join(output_dir, "10_tickets_by_complaint_category.json"), "w") as f:
+    json.dump(category_export.to_dict(orient='records'), f, indent=4)
