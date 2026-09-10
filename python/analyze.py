@@ -10,18 +10,158 @@ import matplotlib.dates as mdates
 from scipy.stats import pearsonr
 from sklearn.linear_model import LinearRegression
 
+# ============================================================
+# SETUP & FILE READING
+# ============================================================
+
 excel_path = sys.argv[1]
 analysis_id = sys.argv[2]
 
 file_ext = os.path.splitext(excel_path)[1].lower()
 
-if file_ext == '.csv':
-    df = pd.read_csv(excel_path)
-elif file_ext in ['.xlsx', '.xls']:
-    df = pd.read_excel(excel_path)
-else:
-    raise ValueError(f"Unsupported file format '{file_ext}'. Please provide a .xlsx, .xls, or .csv file.")
+# Expected columns used to identify the actual table header.
+EXPECTED_COLUMNS = [
+    'Login',
+    'Password',
+    'IPAddress',
+    'CustomerId',
+    'FullName',
+    'Email',
+    'IdCard',
+    'Phone',
+    'Address',
+    'Latitude',
+    'Longitude',
+    'SubscriptionType',
+    'ExpiredAction',
+    'Created',
+    'Plan',
+    'Type',
+    'Price',
+    'SellerFee',
+    'SetupFee',
+    'DeviceFee',
+    'Tax',
+    'Total',
+    'TrxInvoice',
+    'InvoiceDate',
+    'PaymentStatus',
+    'PaymentType',
+    'TrxStatus',
+    'Renewed',
+    'Expired',
+    'EmailNotify',
+    'SmsNotify',
+    'WaNotify',
+    'ServiceType',
+    'BindMac',
+    'MacAddress',
+    'AuthStatus',
+    'Odp',
+    'Note',
+    'Site',
+    'Region',
+    'Status Customer'
+]
 
+
+def find_header_row(raw_df):
+    for row_idx in range(len(raw_df)):
+        row_values = {
+            str(value).strip().lstrip('\ufeff')
+            for value in raw_df.iloc[row_idx].tolist()
+            if pd.notna(value)
+        }
+
+        if all(column in row_values for column in EXPECTED_COLUMNS):
+            return row_idx
+
+    return None
+
+
+# ------------------------------------------------------------
+# Read the file without assuming the first row is the header.
+# ------------------------------------------------------------
+
+if file_ext == '.csv':
+    try:
+        raw_df = pd.read_csv(
+            excel_path,
+            header=None,
+            encoding='utf-8'
+        )
+    except UnicodeDecodeError:
+        raw_df = pd.read_csv(
+            excel_path,
+            header=None,
+            encoding='latin1'
+        )
+
+elif file_ext in ['.xlsx', '.xls']:
+    raw_df = pd.read_excel(
+        excel_path,
+        header=None
+    )
+
+else:
+    raise ValueError(
+        f"Unsupported file format '{file_ext}'. "
+        "Please provide a .xlsx, .xls, or .csv file."
+    )
+
+
+# ------------------------------------------------------------
+# Find the actual table header.
+# ------------------------------------------------------------
+
+header_row = find_header_row(raw_df)
+
+if header_row is None:
+    raise ValueError(
+        "Could not detect the customer dataset header row. "
+        "The expected customer columns were not found."
+    )
+
+print(f"Detected customer table header at row {header_row + 1}")
+
+
+# ------------------------------------------------------------
+# Use the ENTIRE detected row as the header.
+#
+# This means additional columns added to the source file
+# will automatically be included without modifying this script.
+# ------------------------------------------------------------
+
+headers = [
+    str(column).strip().lstrip('\ufeff')
+    for column in raw_df.iloc[header_row].tolist()
+]
+
+df = raw_df.iloc[header_row + 1:].copy()
+
+df.columns = headers
+
+
+# ------------------------------------------------------------
+# Clean completely empty rows and columns.
+# ------------------------------------------------------------
+
+df = df.dropna(how='all').reset_index(drop=True)
+df = df.dropna(axis=1, how='all')
+
+
+# Remove columns whose header is blank or "nan".
+valid_columns = [
+    column
+    for column in df.columns
+    if column.strip() != ''
+    and column.strip().lower() != 'nan'
+]
+
+df = df[valid_columns]
+
+
+# Keep a copy of the original data before preprocessing.
 original_df = df.copy()
 
 # Define the project root and where the images are uploaded to (storage/app/public/results)

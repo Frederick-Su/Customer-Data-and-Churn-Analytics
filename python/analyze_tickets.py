@@ -15,17 +15,135 @@ analysis_id = sys.argv[2]
 
 file_ext = os.path.splitext(excel_path)[1].lower()
 
+# Expected ticketing table headers
+EXPECTED_COLUMNS = [
+    'No',
+    'Ticket ID',
+    'Creation Time',
+    'VN ID',
+    'Name',
+    'Address',
+    'Kontak PIC',
+    'Complaint',
+    'Type Complaint',
+    'Complaint Category',
+    'Area',
+    'Description',
+    'NOC',
+    'Status',
+    'Close Time',
+    'Duration',
+    'Action Case'
+]
+
+def find_header_row(raw_df):
+    """
+    Find the row containing the actual ticket table headers.
+
+    We look for several distinctive columns rather than requiring
+    every column to match, making the detection more tolerant of
+    minor changes in the source file.
+    """
+    required_headers = {
+        'Ticket ID',
+        'Creation Time',
+        'VN ID',
+        'Type Complaint',
+        'Area'
+    }
+
+    for row_idx in range(len(raw_df)):
+        row_values = set(
+            str(value).strip()
+            for value in raw_df.iloc[row_idx].tolist()
+            if pd.notna(value)
+        )
+
+        matches = required_headers.intersection(row_values)
+
+        # Require all distinctive headers to be present
+        if matches == required_headers:
+            return row_idx
+
+    return None
+
+
+# ------------------------------------------------------------
+# Read raw file first so we can detect the real header row
+# ------------------------------------------------------------
 if file_ext == '.csv':
     try:
-        # First, try standard UTF-8 encoding
-        df = pd.read_csv(excel_path, encoding='utf-8')
+        raw_df = pd.read_csv(
+            excel_path,
+            header=None,
+            encoding='utf-8'
+        )
     except UnicodeDecodeError:
-        # If it fails (usually due to Windows Excel exports), fallback to Latin-1
-        df = pd.read_csv(excel_path, encoding='latin1')
+        raw_df = pd.read_csv(
+            excel_path,
+            header=None,
+            encoding='latin1'
+        )
+
 elif file_ext in ['.xlsx', '.xls']:
-    df = pd.read_excel(excel_path)
+    raw_df = pd.read_excel(
+        excel_path,
+        header=None
+    )
+
 else:
-    raise ValueError(f"Unsupported file format '{file_ext}'. Please provide a .xlsx, .xls, or .csv file.")
+    raise ValueError(
+        f"Unsupported file format '{file_ext}'. "
+        "Please provide a .xlsx, .xls, or .csv file."
+    )
+
+
+# ------------------------------------------------------------
+# Detect actual table header
+# ------------------------------------------------------------
+header_row = find_header_row(raw_df)
+
+if header_row is None:
+    raise ValueError(
+        "Could not detect the ticket table header. "
+        "Expected columns such as 'Ticket ID', 'Creation Time', "
+        "'VN ID', 'Type Complaint', and 'Area'."
+    )
+
+print(f"Detected ticket table header at row {header_row + 1}")
+
+
+# ------------------------------------------------------------
+# Extract actual table
+# ------------------------------------------------------------
+df = raw_df.iloc[header_row + 1:].copy()
+
+# Use the detected header row as column names
+df.columns = [
+    str(column).strip()
+    for column in raw_df.iloc[header_row].tolist()
+]
+
+# Remove completely empty rows
+df = df.dropna(how='all').reset_index(drop=True)
+
+# ------------------------------------------------------------
+# Validate expected columns
+# ------------------------------------------------------------
+missing_columns = [
+    column
+    for column in EXPECTED_COLUMNS
+    if column not in df.columns
+]
+
+if missing_columns:
+    raise ValueError(
+        f"Detected table header, but these expected columns are missing: "
+        f"{missing_columns}"
+    )
+
+# Keep only the expected ticketing columns and preserve their order
+df = df[EXPECTED_COLUMNS]
 
 original_df = df.copy()
 
