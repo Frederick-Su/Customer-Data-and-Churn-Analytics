@@ -452,7 +452,230 @@
         };
     }
 
-    // 4. PROPORTION PIE CHART
+    // 4. MONTHLY COMPLAINT TREND CHART
+    // Stacked bars = tickets by complaint type
+    // Area line = total tickets per month
+    function monthlyComplaintTrendChart(rawData) {
+        let chartInstance = null;
+
+        return {
+            rawData: rawData || [],
+            tempStart: '',
+            tempEnd: '',
+
+            init() {
+                if (!this.rawData.length) return;
+
+                this.resetFilter();
+                this.$nextTick(() => this.buildChart());
+                this.$watch('darkMode', () => this.updateTheme());
+            },
+
+            applyFilter() {
+                this.updateChart();
+            },
+
+            resetFilter() {
+                // Find earliest/latest "YYYY-MM" month strings in the dataset
+                const months = this.rawData
+                    .map(row => row.month)
+                    .filter(Boolean)
+                    .sort();
+
+                if (months.length > 0) {
+                    this.tempStart = months[0];
+                    this.tempEnd = months[months.length - 1];
+                }
+                this.updateChart();
+            },
+
+            getFilteredData() {
+                return this.rawData.filter(row => {
+                    if (!row.month) return true;
+                    const afterStart = !this.tempStart || row.month >= this.tempStart;
+                    const beforeEnd = !this.tempEnd || row.month <= this.tempEnd;
+                    return afterStart && beforeEnd;
+                });
+            },
+
+            getComplaintTypes() {
+                if (!this.rawData.length) return [];
+
+                // "month" and "total" are reserved for the total trend.
+                // Everything else is a complaint type.
+                const complaintTypes = new Set();
+
+                this.rawData.forEach(row => {
+                    Object.keys(row).forEach(key => {
+                        if (key !== 'month' && key !== 'total') {
+                            complaintTypes.add(key);
+                        }
+                    });
+                });
+
+                return [...complaintTypes];
+            },
+
+            getColors() {
+                return [
+                    '#D98E2B',
+                    '#5CBE85',
+                    '#DB6C60',
+                    '#7A828C',
+                    '#A6CEE3',
+                    '#B2DF8A',
+                    '#FB9A99',
+                    '#CAB2D6',
+                    '#FDBF6F',
+                    '#80B1D3',
+                    '#BC80BD',
+                    '#8DD3C7'
+                ];
+            },
+
+            buildChart() {
+                const canvas = this.$refs.canvas;
+                if (!canvas) return;
+
+                const theme = getChartTheme();
+                const complaintTypes = this.getComplaintTypes();
+                const colors = this.getColors();
+                const filtered = this.getFilteredData();
+
+                const labels = filtered.map(row => row.month);
+
+                const complaintDatasets = complaintTypes.map((type, index) => ({
+                    type: 'bar',
+                    label: type,
+                    data: filtered.map(row => row[type] || 0),
+                    backgroundColor: colors[index % colors.length],
+                    borderWidth: 0,
+                    stack: 'complaints'
+                }));
+
+                // Total ticket volume as an area/line graph
+                const totalDataset = {
+                    type: 'line',
+                    label: 'Total Tickets',
+                    data: filtered.map(row => row.total || 0),
+                    borderColor: '#D98E2B',
+                    backgroundColor: 'rgba(217, 142, 43, 0.15)',
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    tension: 0.3,
+                    fill: true,
+                    stack: undefined,
+                    order: 0
+                };
+
+                chartInstance = new Chart(canvas.getContext('2d'), {
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            ...complaintDatasets,
+                            totalDataset
+                        ]
+                    },
+
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+
+                        interaction: {
+                            mode: 'index',
+                            intersect: false
+                        },
+
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'bottom',
+
+                                labels: {
+                                    color: theme.textColor,
+                                    font: theme.fontSettings,
+                                    boxWidth: 12,
+                                    boxHeight: 12,
+                                    padding: 15
+                                }
+                            },
+
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return ` ${context.dataset.label}: ${context.parsed.y}`;
+                                    }
+                                }
+                            }
+                        },
+
+                        scales: {
+                            x: {
+                                stacked: true,
+                                grid: {
+                                    color: 'transparent'
+                                },
+                                ticks: {
+                                    color: theme.textColor,
+                                    font: theme.fontSettings
+                                }
+                            },
+
+                            y: {
+                                stacked: true,
+                                beginAtZero: true,
+                                grid: {
+                                    color: theme.gridColor
+                                },
+                                ticks: {
+                                    color: theme.textColor,
+                                    font: theme.fontSettings
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+
+            updateChart() {
+                if (!chartInstance) return;
+
+                const complaintTypes = this.getComplaintTypes();
+                const filtered = this.getFilteredData();
+
+                chartInstance.data.labels = filtered.map(row => row.month);
+
+                // First N datasets are the complaint-type stacked bars, in the
+                // same order getComplaintTypes() returns them; the last
+                // dataset is always the "Total Tickets" line.
+                complaintTypes.forEach((type, index) => {
+                    chartInstance.data.datasets[index].data = filtered.map(row => row[type] || 0);
+                });
+
+                const totalIndex = chartInstance.data.datasets.length - 1;
+                chartInstance.data.datasets[totalIndex].data = filtered.map(row => row.total || 0);
+
+                chartInstance.update();
+            },
+
+            updateTheme() {
+                if (!chartInstance) return;
+
+                const theme = getChartTheme();
+
+                chartInstance.options.scales.x.ticks.color = theme.textColor;
+                chartInstance.options.scales.y.ticks.color = theme.textColor;
+                chartInstance.options.scales.y.grid.color = theme.gridColor;
+
+                chartInstance.options.plugins.legend.labels.color = theme.textColor;
+
+                chartInstance.update();
+            }
+        };
+    }
+
+    // 5. PROPORTION PIE CHART
     function complaintPieChart(rawData) {
         let chartInstance = null;
         return {
@@ -584,7 +807,7 @@
         };
     }
 
-    // 5. MOST FREQUENT COMPLAINERS CHART
+    // 6. MOST FREQUENT COMPLAINERS CHART
     function vnIdHotspotChart(rawData) {
         let chartInstance = null;
         return {

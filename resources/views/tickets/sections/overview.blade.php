@@ -1,12 +1,12 @@
 <div x-show="activeTab === 'overview'" x-cloak class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-    
-    @if(isset($summaries['8_monthly_volume']))
+
+    @if(isset($summaries['monthly_complaint_trend']))
     <div class="bg-paper-100 dark:bg-graphite-900 border border-graphite-200 dark:border-graphite-800 rounded-sm lg:col-span-2">
         <div class="px-5 py-3 border-b border-graphite-200 dark:border-graphite-800">
             <h3 class="op-eyebrow text-graphite-500 dark:text-graphite-400">Monthly Ticket Volume Trend</h3>
         </div>
-        <div class="p-5" x-data="dateFilteredChart(@js($summaries['8_monthly_volume']), 'Creation Time', 'Ticket ID', 'line', false)">
-            
+        <div class="p-5" x-data="monthlyComplaintTrendChart(@js($summaries['monthly_complaint_trend']))">
+
             <!-- Date Filter UI -->
             <form @submit.prevent="applyFilter()" class="flex flex-wrap items-end gap-4 mb-6 bg-graphite-50 dark:bg-graphite-950/40 p-3 rounded-sm border border-graphite-200 dark:border-graphite-800">
                 <div>

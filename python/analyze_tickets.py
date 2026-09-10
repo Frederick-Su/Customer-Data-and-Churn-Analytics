@@ -218,28 +218,119 @@ with open(os.path.join(output_dir, "1_tickets_by_area.json"), "w") as f:
     json.dump(area_export.to_dict(orient='records'), f, indent=4)
 
 # ============================================================
-# 2. TICKETS BY COMPLAINT TYPE
+# 2 & 8. MONTHLY TICKET VOLUME BY COMPLAINT TYPE
 # ============================================================
-# 1. Clean data, count occurrences, and reset to DataFrame
-complaint_counts = df['Type Complaint'].dropna().value_counts().reset_index()
-complaint_counts.columns = ['Type Complaint', 'Ticket_Count']
 
-# 2. Drop anything below 50 counts
-complaint_counts = complaint_counts[complaint_counts['Ticket_Count'] >= 50]
+df_time = df.dropna(subset=['Creation Time']).copy()
 
-# 3. Plot the results
-plt.figure(figsize=(10, 6))
-sns.barplot(data=complaint_counts, x='Ticket_Count', y='Type Complaint', palette='magma')
-plt.title('Number of Tickets by Type Complaint (>= 50 Count)', fontsize=14, fontweight='bold')
-plt.xlabel('Ticket Count', fontsize=12)
-plt.ylabel('Type Complaint', fontsize=12)
-plt.tight_layout()
-plt.savefig(os.path.join(output_dir, "2_tickets_by_complaint.png"))
-plt.close()
+if not df_time.empty:
 
-# 4. Export to JSON
-with open(os.path.join(output_dir, "2_tickets_by_complaint.json"), "w") as f:
-    json.dump(complaint_counts.to_dict(orient='records'), f, indent=4)
+    # Create a monthly period
+    df_time['Month'] = df_time['Creation Time'].dt.to_period('M')
+
+    # --------------------------------------------------------
+    # Count tickets by month and complaint type
+    # --------------------------------------------------------
+
+    monthly_complaints = (
+        df_time
+        .groupby(['Month', 'Type Complaint'])['Ticket ID']
+        .count()
+        .reset_index(name='Ticket_Count')
+    )
+
+    # --------------------------------------------------------
+    # Keep complaint types with at least 50 tickets overall
+    # --------------------------------------------------------
+
+    complaint_totals = (
+        monthly_complaints
+        .groupby('Type Complaint')['Ticket_Count']
+        .sum()
+    )
+
+    valid_complaints = complaint_totals[
+        complaint_totals >= 50
+    ].index
+
+    monthly_complaints = monthly_complaints[
+        monthly_complaints['Type Complaint'].isin(valid_complaints)
+    ]
+
+    # --------------------------------------------------------
+    # Total tickets per month
+    #
+    # This uses ALL tickets, not only complaint types that
+    # passed the >= 50 overall threshold. Computed first so the
+    # pivot below can be reindexed against its (complete) month
+    # range.
+    # --------------------------------------------------------
+
+    monthly_total = (
+        df_time
+        .groupby('Month')['Ticket ID']
+        .count()
+        .sort_index()
+    )
+
+    # --------------------------------------------------------
+    # Create a pivot table:
+    #
+    # Month | Complaint A | Complaint B | Complaint C | ...
+    #
+    # Reindexed against monthly_total's month range so a month
+    # never drops out of the export just because none of its
+    # tickets belonged to a complaint type that cleared the
+    # >= 50 threshold (if EVERY type falls under 50, the plain
+    # .pivot() collapses to zero rows and the trend chart gets
+    # an empty array instead of the total-tickets line).
+    # --------------------------------------------------------
+
+    monthly_pivot = (
+        monthly_complaints
+        .pivot(
+            index='Month',
+            columns='Type Complaint',
+            values='Ticket_Count'
+        )
+        .reindex(monthly_total.index)
+        .fillna(0)
+        .sort_index()
+    )
+
+    # --------------------------------------------------------
+    # Convert Period index to strings for JSON
+    # --------------------------------------------------------
+
+    monthly_export = []
+
+    for month in monthly_total.index:
+
+        row = {
+            'month': str(month),
+            'total': int(monthly_total.get(month, 0))
+        }
+
+        for complaint_type in monthly_pivot.columns:
+            row[complaint_type] = int(
+                monthly_pivot.loc[month, complaint_type]
+            )
+
+        monthly_export.append(row)
+
+    # --------------------------------------------------------
+    # Export JSON for Chart.js
+    # --------------------------------------------------------
+
+    with open(
+        os.path.join(output_dir, "monthly_complaint_trend.json"),
+        "w"
+    ) as f:
+        json.dump(
+            monthly_export,
+            f,
+            indent=4
+        )
 
 # ============================================================
 # 3. TOP 20 VN IDs BY COMPLAINT COUNT
@@ -330,29 +421,6 @@ pie_export = pd.DataFrame({
 
 with open(os.path.join(output_dir, "7_complaint_proportion.json"), "w") as f:
     json.dump(pie_export.to_dict(orient='records'), f, indent=4)
-
-# ============================================================
-# 8. MONTHLY TICKET VOLUME TREND
-# ============================================================
-df_time = df.dropna(subset=['Creation Time']).copy()
-if not df_time.empty:
-    monthly_trend = df_time.set_index('Creation Time').resample('ME')['Ticket ID'].count()
-    
-    plt.figure(figsize=(12, 6))
-    monthly_trend.plot(kind='line', marker='o')
-    plt.title('Monthly Ticket Volume Trend', fontsize=14, fontweight='bold')
-    plt.xlabel('Month', fontsize=12)
-    plt.ylabel('Ticket Volume', fontsize=12)
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "8_monthly_volume.png"))
-    plt.close()
-
-    monthly_export = monthly_trend.reset_index()
-    monthly_export['Creation Time'] = monthly_export['Creation Time'].dt.strftime('%Y-%m')
-    
-    with open(os.path.join(output_dir, "8_monthly_volume.json"), "w") as f:
-        json.dump(monthly_export.to_dict(orient='records'), f, indent=4)
 
 # ============================================================
 # 9. COMPLAINT CONCENTRATION HEATMAP
