@@ -67,7 +67,7 @@ class AnalysisController extends Controller
     private function runPythonScript(string $path, string $analysisId, string $scriptFile = 'analyze.py'): void
     {
         $process = new Process(
-            command: ['python', base_path("python/{$scriptFile}"), Storage::path($path), $analysisId],
+            command: [config('app.python_path'), base_path("python/{$scriptFile}"), Storage::path($path), $analysisId],
             env: array_merge(getenv(), [
                 'SYSTEMROOT' => getenv('SYSTEMROOT') ?: 'C:\\Windows',
                 'WINDIR' => getenv('WINDIR') ?: 'C:\\Windows',
